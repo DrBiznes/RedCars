@@ -1,9 +1,13 @@
 const Footer = () => {
     return (
-        <footer className="w-full bg-primary text-primary-foreground py-3 text-sm">
-            <div className="container mx-auto text-center">
-                <p>Pacific Electric Red Car Travel Time Comparison Tool &copy; {new Date().getFullYear()}</p>
-                <p className="text-xs mt-1 text-primary-foreground/80">A historical transit visualization project</p>
+        <footer className="w-full bg-background text-muted-foreground py-2 text-xs border-t border-border z-20 relative">
+            <div className="container mx-auto flex justify-between items-center px-4">
+                <p>Pacific Electric Time Machine &copy; {new Date().getFullYear()}</p>
+                <div className="flex gap-4">
+                    <a href="#" className="hover:text-foreground transition-colors">Terms</a>
+                    <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
+                    <a href="#" className="hover:text-foreground transition-colors">Feedback</a>
+                </div>
             </div>
         </footer>
     );

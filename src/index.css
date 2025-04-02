@@ -130,6 +130,51 @@
   }
 }
 
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.4);
+  z-index: 5;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Googie-style design touches */
+.googie-card {
+  border-radius: 16px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.googie-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.googie-header {
+  background: linear-gradient(to right, var(--red-car-red), #ff7043);
+  color: white;
+  padding: 1rem;
+  font-weight: bold;
+}
+
+/* Update leaflet container to always maintain its size */
+.leaflet-container-custom {
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 1;
+}
+
 /* Red Car specific styles */
 .red-car-line {
   stroke: var(--red-car-line);
