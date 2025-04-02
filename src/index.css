@@ -130,19 +130,6 @@
   }
 }
 
-/* Leaflet specific styles */
-.leaflet-container {
-  @apply bg-background;
-}
-
-.leaflet-control {
-  @apply rounded-md border border-border bg-background text-foreground shadow-sm;
-}
-
-.leaflet-popup-content-wrapper {
-  @apply rounded-md border border-border bg-background text-foreground shadow-sm;
-}
-
 /* Red Car specific styles */
 .red-car-line {
   stroke: var(--red-car-line);
@@ -154,4 +141,34 @@
   fill: var(--red-car-stop);
   stroke: white;
   stroke-width: 1;
+}
+
+/* Marker colorization */
+.start-marker {
+  filter: hue-rotate(120deg); /* Makes it green */
+}
+
+.end-marker {
+  filter: hue-rotate(0deg); /* Keeps it red */
+}
+
+/* Animation for sidebar */
+.sidebar-enter {
+  transform: translateX(-100%);
+}
+.sidebar-enter-active {
+  transform: translateX(0);
+  transition: transform 300ms;
+}
+.sidebar-exit {
+  transform: translateX(0);
+}
+.sidebar-exit-active {
+  transform: translateX(-100%);
+  transition: transform 300ms;
+}
+
+/* Make sure tooltips are visible */
+.tooltip-content {
+  z-index: 1100 !important;
 }
