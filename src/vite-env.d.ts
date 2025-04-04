@@ -5,6 +5,9 @@ declare global {
         mapControls?: {
             startPlacingStart: () => void;
             startPlacingEnd: () => void;
+            zoomIn: () => void;
+            zoomOut: () => void;
+            resetView: () => void;
         };
     }
 }

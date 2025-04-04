@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { Feature, FeatureCollection, GeoJsonProperties } from 'geojson';
 
 // Fix for default Leaflet marker icon in React
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -16,21 +17,21 @@ let DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Custom marker icons (assuming CSS defines .start-marker and .end-marker filters/styles)
+// Custom marker icons
 const startIcon = new L.Icon({
-    iconUrl: icon, // Using default icon, colorized via CSS
+    iconUrl: icon,
     shadowUrl: iconShadow,
     iconSize: [25, 41],
     iconAnchor: [12, 41],
-    className: 'start-marker'
+    className: 'start-marker' // We'll add CSS to colorize this
 });
 
 const endIcon = new L.Icon({
-    iconUrl: icon, // Using default icon, colorized via CSS
+    iconUrl: icon,
     shadowUrl: iconShadow,
     iconSize: [25, 41],
     iconAnchor: [12, 41],
-    className: 'end-marker'
+    className: 'end-marker' // We'll add CSS to colorize this
 });
 
 interface MapEventHandlerProps {
@@ -40,15 +41,33 @@ interface MapEventHandlerProps {
     onEndPlaced: (position: [number, number]) => void;
 }
 
+interface MapProps {
+    selectedLines?: string[];
+}
+
+// Global window interface update for map controls
+declare global {
+    interface Window {
+        mapControls?: {
+            startPlacingStart: () => void;
+            startPlacingEnd: () => void;
+            zoomIn: () => void;
+            zoomOut: () => void;
+            resetView: () => void;
+        };
+    }
+}
+
 // MapEventHandler component to handle click events
 const MapEventHandler = ({
-                             isPlacingStart,
-                             isPlacingEnd,
-                             onStartPlaced,
-                             onEndPlaced
-                         }: MapEventHandlerProps) => {
-    // Prefix 'map' with '_' because it's required by the hook but not used directly
-    const _map = useMapEvents({
+    isPlacingStart,
+    isPlacingEnd,
+    onStartPlaced,
+    onEndPlaced
+}: MapEventHandlerProps) => {
+    // We need this variable for the hook, but don't use it directly
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const map = useMapEvents({
         click(e) {
             if (isPlacingStart) {
                 onStartPlaced([e.latlng.lat, e.latlng.lng]);
@@ -58,103 +77,171 @@ const MapEventHandler = ({
         }
     });
 
-    // This component doesn't render anything itself
     return null;
 };
 
-// Controller to get map instance for zoom/reset controls
+// Controller for zoom and reset
 const MapController = ({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null> }) => {
-    const map = useMap(); // Get the map instance from the context
+    const map = useMap();
 
-    // Assign the map instance to the ref passed from the parent
     useEffect(() => {
         if (mapRef) {
             mapRef.current = map;
         }
-        // Clean up ref on unmount if necessary, though usually not required
-        // return () => { mapRef.current = null; };
     }, [map, mapRef]);
 
-    // This component doesn't render anything itself
     return null;
 };
 
-const Map = () => {
+const Map = ({ selectedLines = [] }: MapProps) => {
     // Los Angeles coordinates
-    const defaultPosition: L.LatLngTuple = [34.0522, -118.2437]; // Use L.LatLngTuple for type safety
+    const defaultPosition: [number, number] = [34.0522, -118.2437];
     const defaultZoom = 10;
 
-    const [startPosition, setStartPosition] = useState<L.LatLngTuple | null>(null);
-    const [endPosition, setEndPosition] = useState<L.LatLngTuple | null>(null);
+    const [startPosition, setStartPosition] = useState<[number, number] | null>(null);
+    const [endPosition, setEndPosition] = useState<[number, number] | null>(null);
     const [isPlacingStart, setIsPlacingStart] = useState(false);
     const [isPlacingEnd, setIsPlacingEnd] = useState(false);
+    const [showAllLines, setShowAllLines] = useState(selectedLines.length === 0);
+    const [activeLines, setActiveLines] = useState<string[]>(selectedLines);
+    const [geoJsonData, setGeoJsonData] = useState<FeatureCollection | null>(null);
 
     // Reference to the Leaflet map instance
     const mapRef = useRef<L.Map | null>(null);
 
-    // Callback to initiate placing the start marker
+    // Fetch GeoJSON data
+    useEffect(() => {
+        const fetchGeoJsonData = async () => {
+            try {
+                const response = await fetch('/src/data/GeoJSON/lines.geojson');
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch GeoJSON data: ${response.status}`);
+                }
+                const data = await response.json();
+                setGeoJsonData(data);
+            } catch (err) {
+                console.error('Error loading GeoJSON data:', err);
+            }
+        };
+
+        fetchGeoJsonData();
+    }, []);
+
+    // Update active lines when selectedLines prop changes
+    useEffect(() => {
+        setActiveLines(selectedLines);
+        setShowAllLines(selectedLines.length === 0);
+    }, [selectedLines]);
+
+    // These functions will be exposed to parent components
     const startPlacingStart = useCallback(() => {
-        console.log("Initiating start marker placement"); // Debug log
         setIsPlacingStart(true);
         setIsPlacingEnd(false);
-        // Optionally change cursor style
-        if (mapRef.current?.getContainer()) {
-            mapRef.current.getContainer().style.cursor = 'crosshair';
-        }
     }, []);
 
-    // Callback to initiate placing the end marker
     const startPlacingEnd = useCallback(() => {
-        console.log("Initiating end marker placement"); // Debug log
         setIsPlacingEnd(true);
         setIsPlacingStart(false);
-        // Optionally change cursor style
-        if (mapRef.current?.getContainer()) {
-            mapRef.current.getContainer().style.cursor = 'crosshair';
-        }
     }, []);
 
-    // Callback when the start marker position is determined (map clicked)
-    const handleStartPlaced = useCallback((position: L.LatLngTuple) => {
-        console.log("Start marker placed at:", position); // Debug log
+    const handleStartPlaced = useCallback((position: [number, number]) => {
         setStartPosition(position);
         setIsPlacingStart(false);
-        // Reset cursor style
-        if (mapRef.current?.getContainer()) {
-            mapRef.current.getContainer().style.cursor = '';
-        }
     }, []);
 
-    // Callback when the end marker position is determined (map clicked)
-    const handleEndPlaced = useCallback((position: L.LatLngTuple) => {
-        console.log("End marker placed at:", position); // Debug log
+    const handleEndPlaced = useCallback((position: [number, number]) => {
         setEndPosition(position);
         setIsPlacingEnd(false);
-        // Reset cursor style
-        if (mapRef.current?.getContainer()) {
-            mapRef.current.getContainer().style.cursor = '';
-        }
     }, []);
 
-    // Map control functions using the mapRef
+    // Map control functions
     const zoomIn = useCallback(() => {
-        mapRef.current?.zoomIn();
+        if (mapRef.current) {
+            mapRef.current.zoomIn();
+        }
     }, []);
 
     const zoomOut = useCallback(() => {
-        mapRef.current?.zoomOut();
+        if (mapRef.current) {
+            mapRef.current.zoomOut();
+        }
     }, []);
 
     const resetView = useCallback(() => {
-        mapRef.current?.setView(defaultPosition, defaultZoom);
-    }, [defaultPosition, defaultZoom]); // Include dependencies
+        if (mapRef.current) {
+            mapRef.current.setView(defaultPosition, defaultZoom);
+        }
+    }, []);
 
-    // Expose control methods to parent/other components via the window object
-    // Ensure this effect runs only once or when the control functions change
+    const handleLineClick = useCallback((lineName: string) => {
+        // Toggle the line in the active lines array
+        if (activeLines.includes(lineName)) {
+            setActiveLines(activeLines.filter(name => name !== lineName));
+        } else {
+            setActiveLines([...activeLines, lineName]);
+        }
+        
+        // If we're selecting a specific line, turn off "show all lines"
+        if (showAllLines) {
+            setShowAllLines(false);
+        }
+    }, [activeLines, showAllLines]);
+
+    // GeoJSON styling - fix by defining it as a function that returns the style function
+    const getStyleFunction = useCallback(() => {
+        // This function returns the actual style function that GeoJSON component will use
+        return (feature?: Feature<any, any>) => {
+            if (!feature || !feature.properties) {
+                return {
+                    color: 'var(--red-car-line)',
+                    weight: 0,
+                    opacity: 0
+                };
+            }
+            
+            const lineName = feature.properties.Name as string | undefined;
+            
+            const isActive = 
+                showAllLines || 
+                (lineName && activeLines.includes(lineName));
+            
+            const isLocalLine = feature.properties.description && 
+                typeof feature.properties.description === 'string' && 
+                feature.properties.description.includes('Local');
+            
+            return {
+                color: 'var(--red-car-line)',
+                weight: isActive ? 4 : 0,
+                opacity: isActive ? 0.8 : 0,
+                dashArray: isLocalLine ? '5, 5' : undefined
+            };
+        };
+    }, [showAllLines, activeLines]);
+
+    // GeoJSON popup and events
+    const onEachFeature = useCallback((feature: Feature, layer: L.Layer) => {
+        if (feature.properties) {
+            const lineName = feature.properties.Name as string | undefined;
+            const description = feature.properties.description as string | undefined;
+            
+            if (lineName) {
+                const popupContent = `
+                    <div>
+                        <h3>${lineName}</h3>
+                        ${description ? `<p>${description}</p>` : ''}
+                    </div>
+                `;
+                layer.bindPopup(popupContent);
+                
+                layer.on('click', () => {
+                    handleLineClick(lineName);
+                });
+            }
+        }
+    }, [handleLineClick]);
+
+    // Expose methods to parent via window object
     useEffect(() => {
-        console.log("Registering map controls on window");
-        // Assign functions to window.mapControls
-        // Type safety relies on the declaration in vite-env.d.ts
         window.mapControls = {
             startPlacingStart,
             startPlacingEnd,
@@ -163,48 +250,35 @@ const Map = () => {
             resetView
         };
 
-        // Cleanup function to remove the global property when the component unmounts
+        // Cleanup on unmount
         return () => {
-            console.log("Unregistering map controls from window");
-            // Check if it's the same object before deleting to avoid conflicts if multiple maps exist
-            if (window.mapControls &&
-                window.mapControls.startPlacingStart === startPlacingStart) {
-                window.mapControls = undefined; // Or delete window.mapControls;
-            }
+            window.mapControls = undefined;
         };
-        // Rerun effect if any control function identity changes (due to useCallback dependencies)
     }, [startPlacingStart, startPlacingEnd, zoomIn, zoomOut, resetView]);
 
     return (
         <div className="h-full w-full relative">
-            {/* Display user feedback when placing markers */}
-            {(isPlacingStart || isPlacingEnd) && (
-                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-background p-2 rounded-md border border-border shadow-md z-[1000] text-sm pointer-events-none">
-                    {isPlacingStart
-                        ? "Click on the map to place your starting point"
-                        : "Click on the map to place your destination"}
-                </div>
-            )}
-
             <MapContainer
                 center={defaultPosition}
                 zoom={defaultZoom}
                 style={{ height: '100%', width: '100%' }}
-                zoomControl={false} // Disable default zoom controls (using custom ones)
-                attributionControl={true} // Keep OpenStreetMap attribution
-                className="leaflet-container-custom" // Custom class for potential styling
-                // Assign the ref via the 'ref' prop is not standard for react-leaflet MapContainer
-                // Instead, use a component inside like MapController to get the instance
+                zoomControl={false} // Hide default zoom control
+                attributionControl={true} // Keep attribution but we'll style it
+                className="leaflet-container-custom" // Add custom class for styling
             >
-                {/* Component to get map instance */}
-                <MapController mapRef={mapRef} />
-
                 <TileLayer
-                    attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
 
-                {/* Component to handle map click events for marker placement */}
+                {geoJsonData && (
+                    <GeoJSON 
+                        data={geoJsonData} 
+                        style={getStyleFunction()}
+                        onEachFeature={onEachFeature}
+                    />
+                )}
+
                 <MapEventHandler
                     isPlacingStart={isPlacingStart}
                     isPlacingEnd={isPlacingEnd}
@@ -212,27 +286,28 @@ const Map = () => {
                     onEndPlaced={handleEndPlaced}
                 />
 
-                {/* Display the start marker if its position is set */}
+                <MapController mapRef={mapRef} />
+
                 {startPosition && (
-                    <Marker position={startPosition} icon={startIcon}>
-                        {/* Optional: Add Popup or Tooltip */}
-                        {/* <Popup>Starting Point</Popup> */}
-                    </Marker>
+                    <Marker position={startPosition} icon={startIcon} />
                 )}
 
-                {/* Display the end marker if its position is set */}
                 {endPosition && (
-                    <Marker position={endPosition} icon={endIcon}>
-                        {/* Optional: Add Popup or Tooltip */}
-                        {/* <Popup>Destination</Popup> */}
-                    </Marker>
+                    <Marker position={endPosition} icon={endIcon} />
                 )}
-
-                {/* Placeholder for Red Car routes and stops layers */}
-                {/* Example: <GeoJSON data={redCarRoutesGeoJson} style={{ color: 'red' }} /> */}
-                {/* Example: <LayerGroup>{redCarStopMarkers}</LayerGroup> */}
-
             </MapContainer>
+
+            {isPlacingStart && (
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-background p-2 rounded-md border border-border shadow-md z-[1000]">
+                    Click on the map to place your starting point
+                </div>
+            )}
+
+            {isPlacingEnd && (
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-background p-2 rounded-md border border-border shadow-md z-[1000]">
+                    Click on the map to place your destination
+                </div>
+            )}
         </div>
     );
 };

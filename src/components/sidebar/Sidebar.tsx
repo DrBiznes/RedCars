@@ -3,15 +3,28 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import PELineSelector from '@/components/map/PELineSelector';
 
 interface SidebarProps {
     onClose?: () => void;
     defaultTab?: string;
     isOpen: boolean;
+    onLinesChange?: (lines: string[]) => void;
+    selectedLines?: string[];
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onClose, defaultTab = 'results', isOpen }) => {
+const Sidebar: React.FC<SidebarProps> = ({ 
+    onClose, 
+    defaultTab = 'results', 
+    isOpen,
+    onLinesChange = () => {},
+    selectedLines = []
+}) => {
     const [activeTab, setActiveTab] = useState(defaultTab);
+
+    const handleLinesChange = (lines: string[]) => {
+        onLinesChange(lines);
+    };
 
     return (
         <aside
@@ -40,7 +53,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, defaultTab = 'results', isOp
                 </div>
 
                 <div className="p-4 flex-1 overflow-auto">
-                    {/* Tab contents remain the same */}
                     <TabsContent value="results" className="h-full mt-0">
                         {/* Results tab content */}
                         <div className="flex flex-col gap-4">
@@ -107,25 +119,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, defaultTab = 'results', isOp
                         {/* Layers tab content */}
                         <div className="space-y-4">
                             <div className="p-4 border border-border rounded-md">
-                                <h3 className="font-medium mb-2">Map Layers</h3>
-                                <div className="space-y-2">
-                                    <div className="flex items-center">
-                                        <input type="checkbox" id="redcar-routes" className="mr-2" defaultChecked />
-                                        <label htmlFor="redcar-routes" className="text-sm">Red Car Routes</label>
-                                    </div>
-                                    <div className="flex items-center">
-                                        <input type="checkbox" id="redcar-stops" className="mr-2" defaultChecked />
-                                        <label htmlFor="redcar-stops" className="text-sm">Red Car Stops</label>
-                                    </div>
-                                    <div className="flex items-center">
-                                        <input type="checkbox" id="modern-transit" className="mr-2" defaultChecked />
-                                        <label htmlFor="modern-transit" className="text-sm">Modern Transit Routes</label>
-                                    </div>
-                                    <div className="flex items-center">
-                                        <input type="checkbox" id="historical-map" className="mr-2" />
-                                        <label htmlFor="historical-map" className="text-sm">Historical Map Overlay</label>
-                                    </div>
-                                </div>
+                                <h3 className="font-medium mb-2">Red Car Lines</h3>
+                                <PELineSelector 
+                                    onLinesChange={handleLinesChange}
+                                    selectedLines={selectedLines}
+                                />
                             </div>
 
                             <div className="p-4 border border-border rounded-md">
