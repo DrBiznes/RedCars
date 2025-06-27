@@ -2,10 +2,10 @@ import { FeatureCollection } from 'geojson';
 import { GraphBuilder } from './graphBuilder';
 import { RouteFinder } from './routeFinder';
 import { RouteGraph, RouteResult, RoutingOptions } from './types';
+import { calculateDistance } from './geometry';
 
 /**
- * Main Pacific Electric routing service
- * Coordinates graph building and route finding
+ * Main Pacific Electric routing service with improved algorithms
  */
 export class PacificElectricRouter {
   private graph: RouteGraph | null = null;
@@ -19,7 +19,7 @@ export class PacificElectricRouter {
    */
   async initialize(geoJsonData: FeatureCollection): Promise<void> {
     try {
-      console.log('Building Pacific Electric route graph...');
+      console.log('Initializing Pacific Electric router with improved algorithms...');
       
       const graphBuilder = new GraphBuilder();
       this.graph = graphBuilder.buildFromGeoJSON(geoJsonData);
@@ -28,15 +28,7 @@ export class PacificElectricRouter {
       this.isInitialized = true;
       
       const stats = this.getNetworkStats();
-      console.log(`Graph built successfully:`);
-      console.log(`- ${stats?.nodeCount} nodes (${stats?.intersectionCount} intersections, ${stats?.endpointCount} endpoints)`);
-      console.log(`- ${stats?.edgeCount} edges`);
-      console.log(`- ${stats?.lineCount} unique lines`);
-      
-      // Debug: Check if we have any intersections
-      if (stats && stats.intersectionCount === 0) {
-        console.warn('No line intersections found! This will make routing impossible.');
-      }
+      console.log('Router initialized successfully:', stats);
       
     } catch (error) {
       console.error('Failed to initialize Pacific Electric router:', error);
@@ -53,7 +45,15 @@ export class PacificElectricRouter {
     }
 
     try {
-      return this.routeFinder.findRoute(options);
+      const route = this.routeFinder.findRoute(options);
+      
+      if (route) {
+        console.log('Route found:', PacificElectricRouter.formatRouteResult(route));
+      } else {
+        console.log('No route found between the selected points');
+      }
+      
+      return route;
     } catch (error) {
       console.error('Route finding failed:', error);
       return null;
@@ -86,45 +86,47 @@ export class PacificElectricRouter {
     lines: string[];
     intersectionCount: number;
     endpointCount: number;
+    stationCount: number;
+    transferCount: number;
   } | null {
     if (!this.graph) {
       return null;
     }
 
-    const lines = this.getUniqueLines();
+    const lines = new Set<string>();
     let intersectionCount = 0;
     let endpointCount = 0;
+    let stationCount = 0;
+    let transferCount = 0;
 
     this.graph.nodes.forEach(node => {
       if (node.type === 'intersection') {
         intersectionCount++;
       } else if (node.type === 'endpoint') {
         endpointCount++;
+      } else if (node.type === 'station') {
+        stationCount++;
+      }
+      
+      node.lines.forEach(line => lines.add(line));
+    });
+    
+    this.graph.edges.forEach(edge => {
+      if (edge.line === 'TRANSFER') {
+        transferCount++;
       }
     });
 
     return {
       nodeCount: this.graph.nodes.size,
       edgeCount: this.graph.edges.size,
-      lineCount: lines.length,
-      lines,
+      lineCount: lines.size,
+      lines: Array.from(lines).sort(),
       intersectionCount,
-      endpointCount
+      endpointCount,
+      stationCount,
+      transferCount
     };
-  }
-
-  /**
-   * Get all unique line names in the network
-   */
-  private getUniqueLines(): string[] {
-    if (!this.graph) return [];
-    
-    const lineSet = new Set<string>();
-    this.graph.edges.forEach(edge => {
-      lineSet.add(edge.line);
-    });
-    
-    return Array.from(lineSet).sort();
   }
 
   /**
@@ -142,58 +144,152 @@ export class PacificElectricRouter {
   }
 
   /**
+   * Format route result for display
+   */
+  static formatRouteResult(route: RouteResult): {
+    summary: string;
+    details: string[];
+    segments: Array<{
+      line: string;
+      time: number;
+      distance: number;
+      stops: number;
+    }>;
+    timeFormatted: string;
+    distanceFormatted: string;
+  } {
+    const hours = Math.floor(route.totalTimeMinutes / 60);
+    const minutes = Math.round(route.totalTimeMinutes % 60);
+    const timeFormatted = hours > 0 ? `${hours}h ${minutes}m` : `${minutes} min`;
+    
+    const distanceFormatted = `${route.totalDistance.toFixed(1)} mi`;
+    
+    const transferText = route.transfers === 0 
+      ? 'Direct route' 
+      : `${route.transfers} transfer${route.transfers > 1 ? 's' : ''}`;
+    
+    const summary = `${timeFormatted} • ${distanceFormatted} • ${transferText}`;
+    
+    // Calculate detailed segments
+    const segments: Array<{
+      line: string;
+      time: number;
+      distance: number;
+      stops: number;
+    }> = [];
+    
+    let currentLine = '';
+    let segmentTime = 0;
+    let segmentDistance = 0;
+    let segmentStops = 0;
+    
+    route.edges.forEach(edge => {
+      if (edge.line === 'TRANSFER') {
+        // Complete current segment if exists
+        if (currentLine && segmentTime > 0) {
+          segments.push({
+            line: currentLine,
+            time: segmentTime,
+            distance: segmentDistance,
+            stops: segmentStops
+          });
+        }
+        // Reset for next segment
+        currentLine = '';
+        segmentTime = 0;
+        segmentDistance = 0;
+        segmentStops = 0;
+      } else if (edge.line !== currentLine) {
+        // Starting new line segment
+        if (currentLine && segmentTime > 0) {
+          segments.push({
+            line: currentLine,
+            time: segmentTime,
+            distance: segmentDistance,
+            stops: segmentStops
+          });
+        }
+        currentLine = edge.line;
+        segmentTime = edge.travelTimeMinutes;
+        segmentDistance = edge.distance;
+        segmentStops = 1;
+      } else {
+        // Continue on same line
+        segmentTime += edge.travelTimeMinutes;
+        segmentDistance += edge.distance;
+        segmentStops += 1;
+      }
+    });
+    
+    // Add final segment
+    if (currentLine && segmentTime > 0) {
+      segments.push({
+        line: currentLine,
+        time: segmentTime,
+        distance: segmentDistance,
+        stops: segmentStops
+      });
+    }
+    
+    // Format details
+    const details = segments.map((segment, index) => {
+      const segMinutes = Math.round(segment.time);
+      const segDistance = segment.distance.toFixed(1);
+      return `${index + 1}. ${segment.line}: ${segMinutes} min, ${segDistance} mi, ${segment.stops} stops`;
+    });
+
+    return {
+      summary,
+      details,
+      segments,
+      timeFormatted,
+      distanceFormatted
+    };
+  }
+
+  /**
    * Calculate straight-line distance between two points (for comparison)
    */
   static calculateDirectDistance(
     start: [number, number], 
     end: [number, number]
   ): number {
-    const [lat1, lon1] = start;
-    const [lat2, lon2] = end;
-    
-    const R = 3959; // Earth's radius in miles
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    
-    const a = 
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-      
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+    return calculateDistance(start, end);
   }
 
   /**
-   * Format route result for display
+   * Validate route options
    */
-  static formatRouteResult(route: RouteResult): {
-    summary: string;
-    details: string[];
-    timeFormatted: string;
-    distanceFormatted: string;
-  } {
-    const hours = Math.floor(route.totalTimeMinutes / 60);
-    const minutes = Math.round(route.totalTimeMinutes % 60);
-    const timeFormatted = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  static validateRoutingOptions(options: RoutingOptions): string[] {
+    const errors: string[] = [];
     
-    const distanceFormatted = `${route.totalDistance.toFixed(1)} mi`;
+    if (!options.startPoint || options.startPoint.length !== 2) {
+      errors.push('Invalid start point');
+    }
     
-    const summary = `${timeFormatted} • ${distanceFormatted} • ${route.transfers} transfers`;
+    if (!options.endPoint || options.endPoint.length !== 2) {
+      errors.push('Invalid end point');
+    }
     
-    const details = route.lines.map((line, index) => {
-      const segment = route.edges.filter(edge => edge.line === line);
-      const segmentTime = segment.reduce((sum, edge) => sum + edge.travelTimeMinutes, 0);
-      const segmentDistance = segment.reduce((sum, edge) => sum + edge.distance, 0);
-      
-      return `${index + 1}. ${line} (${Math.round(segmentTime)}m, ${segmentDistance.toFixed(1)}mi)`;
-    });
-
-    return {
-      summary,
-      details,
-      timeFormatted,
-      distanceFormatted
-    };
+    if (options.startPoint && options.endPoint) {
+      const distance = calculateDistance(options.startPoint, options.endPoint);
+      if (distance < 0.01) {
+        errors.push('Start and end points are too close together');
+      }
+      if (distance > 100) {
+        errors.push('Start and end points are too far apart (over 100 miles)');
+      }
+    }
+    
+    const validOptimizeModes = ['time', 'distance', 'transfers'];
+    if (options.optimizeFor && !validOptimizeModes.includes(options.optimizeFor)) {
+      errors.push(`Invalid optimization mode. Use one of: ${validOptimizeModes.join(', ')}`);
+    }
+    
+    if (options.maxWalkingDistance && options.maxWalkingDistance > 5) {
+      errors.push('Maximum walking distance is too high (limit is 5 miles)');
+    }
+    
+    return errors;
   }
 }

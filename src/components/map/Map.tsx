@@ -110,6 +110,7 @@ const Map = ({ selectedLines = [] }: MapProps) => {
     const [currentRoute, setCurrentRoute] = useState<RouteResult | null>(null);
     const [router, setRouter] = useState<PacificElectricRouter | null>(null);
     const [isRouterReady, setIsRouterReady] = useState(false);
+    const [routeError, setRouteError] = useState<string | null>(null);
 
     // Reference to the Leaflet map instance
     const mapRef = useRef<L.Map | null>(null);
@@ -133,6 +134,7 @@ const Map = ({ selectedLines = [] }: MapProps) => {
                 
             } catch (err) {
                 console.error('Error loading GeoJSON data or initializing router:', err);
+                setRouteError('Failed to initialize Pacific Electric network');
             }
         };
 
@@ -149,21 +151,25 @@ const Map = ({ selectedLines = [] }: MapProps) => {
     const startPlacingStart = useCallback(() => {
         setIsPlacingStart(true);
         setIsPlacingEnd(false);
+        setRouteError(null);
     }, []);
 
     const startPlacingEnd = useCallback(() => {
         setIsPlacingEnd(true);
         setIsPlacingStart(false);
+        setRouteError(null);
     }, []);
 
     const handleStartPlaced = useCallback((position: [number, number]) => {
         setStartPosition(position);
         setIsPlacingStart(false);
+        console.log('Start marker placed at:', position);
     }, []);
 
     const handleEndPlaced = useCallback((position: [number, number]) => {
         setEndPosition(position);
         setIsPlacingEnd(false);
+        console.log('End marker placed at:', position);
     }, []);
 
     // Map control functions
@@ -188,33 +194,60 @@ const Map = ({ selectedLines = [] }: MapProps) => {
     // Route finding function
     const findRoute = useCallback(() => {
         if (!router || !isRouterReady) {
-            console.warn('Router not ready');
+            setRouteError('Router not ready. Please wait...');
             return;
         }
         
         if (!startPosition || !endPosition) {
-            console.warn('Please place both start and end markers on the map');
+            setRouteError('Please place both start and end markers on the map');
             return;
         }
 
         try {
+            setRouteError(null);
             console.log('Finding route from', startPosition, 'to', endPosition);
+            
+            // Validate options
+            const validationErrors = PacificElectricRouter.validateRoutingOptions({
+                startPoint: startPosition,
+                endPoint: endPosition,
+                optimizeFor: 'time'
+            });
+            
+            if (validationErrors.length > 0) {
+                setRouteError(validationErrors.join('. '));
+                return;
+            }
+            
             const routeResult = router.findRoute({
                 startPoint: startPosition,
                 endPoint: endPosition,
                 optimizeFor: 'time',
-                maxWalkingDistance: 2.0 // Increase to 2 miles for initial testing
+                maxWalkingDistance: 1.0 // 1 mile max walking distance
             });
 
             if (routeResult) {
                 setCurrentRoute(routeResult);
-                console.log('Route found:', PacificElectricRouter.formatRouteResult(routeResult));
+                const formatted = PacificElectricRouter.formatRouteResult(routeResult);
+                console.log('Route found:', formatted);
+                
+                // Fit map to show the entire route
+                if (mapRef.current && routeResult.edges.length > 0) {
+                    const bounds = L.latLngBounds([]);
+                    routeResult.edges.forEach(edge => {
+                        edge.coordinates.forEach(coord => {
+                            bounds.extend([coord[1], coord[0]]);
+                        });
+                    });
+                    mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+                }
             } else {
-                console.warn('No route found between the selected points. Try placing markers closer to Pacific Electric lines.');
+                setRouteError('No route found. Try placing markers closer to Pacific Electric lines (shown in red).');
                 setCurrentRoute(null);
             }
         } catch (error) {
             console.error('Error finding route:', error);
+            setRouteError('An error occurred while finding the route');
             setCurrentRoute(null);
         }
     }, [startPosition, endPosition, router, isRouterReady]);
@@ -282,8 +315,8 @@ const Map = ({ selectedLines = [] }: MapProps) => {
             if (lineName) {
                 const popupContent = `
                     <div>
-                        <h3>${lineName}</h3>
-                        ${description ? `<p>${description}</p>` : ''}
+                        <h3 style="margin: 0 0 8px 0; font-weight: bold;">${lineName}</h3>
+                        ${description ? `<p style="margin: 0; font-size: 14px;">${description}</p>` : ''}
                     </div>
                 `;
                 layer.bindPopup(popupContent);
@@ -353,56 +386,93 @@ const Map = ({ selectedLines = [] }: MapProps) => {
                 )}
 
                 {/* Route visualization */}
-                {currentRoute && currentRoute.edges.map((edge, index) => (
-                    <Polyline
-                        key={`route-${index}`}
-                        positions={edge.coordinates}
-                        color="#ff4444"
-                        weight={6}
-                        opacity={0.8}
-                        dashArray="10, 5"
-                    />
-                ))}
+                {currentRoute && currentRoute.edges.map((edge, index) => {
+                    // Convert coordinates for Leaflet (expects [lat, lng])
+                    const positions = edge.coordinates.map(coord => [coord[1], coord[0]] as [number, number]);
+                    
+                    return (
+                        <Polyline
+                            key={`route-${index}`}
+                            positions={positions}
+                            color={edge.line === 'TRANSFER' ? '#666666' : '#ff4444'}
+                            weight={6}
+                            opacity={0.8}
+                            dashArray={edge.line === 'TRANSFER' ? '5, 10' : undefined}
+                        />
+                    );
+                })}
             </MapContainer>
 
             {isPlacingStart && (
-                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-background p-2 rounded-md border border-border shadow-md z-[1000]">
-                    Click on the map to place your starting point
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-background p-3 rounded-md border border-border shadow-md z-[1000]">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        Click on the map to place your starting point
+                    </div>
                 </div>
             )}
 
             {isPlacingEnd && (
-                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-background p-2 rounded-md border border-border shadow-md z-[1000]">
-                    Click on the map to place your destination
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-background p-3 rounded-md border border-border shadow-md z-[1000]">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                        Click on the map to place your destination
+                    </div>
+                </div>
+            )}
+
+            {/* Error display */}
+            {routeError && (
+                <div className="absolute top-16 left-1/2 transform -translate-x-1/2 bg-destructive/90 text-white p-3 rounded-md shadow-md z-[1000] max-w-md">
+                    <div className="flex items-start gap-2">
+                        <span className="text-lg">⚠</span>
+                        <div className="text-sm">{routeError}</div>
+                    </div>
                 </div>
             )}
 
             {/* Route result display */}
             {currentRoute && (
-                <div className="absolute bottom-4 left-4 bg-background p-4 rounded-md border border-border shadow-md z-[1000] max-w-sm">
-                    <h3 className="font-semibold text-sm mb-2">Pacific Electric Route</h3>
-                    <div className="text-xs space-y-1">
-                        <div className="font-medium">
-                            {PacificElectricRouter.formatRouteResult(currentRoute).summary}
+                <div className="absolute bottom-20 left-4 bg-background/95 backdrop-blur-sm p-4 rounded-lg border border-border shadow-lg z-[1000] max-w-md">
+                    <h3 className="font-semibold text-base mb-3 text-red-car-red">Pacific Electric Route</h3>
+                    <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">Travel Time:</span>
+                            <span className="font-medium">
+                                {PacificElectricRouter.formatRouteResult(currentRoute).timeFormatted}
+                            </span>
                         </div>
-                        <div className="text-muted-foreground">
-                            Lines: {currentRoute.lines.join(' → ')}
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">Distance:</span>
+                            <span className="font-medium">
+                                {PacificElectricRouter.formatRouteResult(currentRoute).distanceFormatted}
+                            </span>
                         </div>
                         {currentRoute.transfers > 0 && (
-                            <div className="text-amber-600">
-                                {currentRoute.transfers} transfer{currentRoute.transfers > 1 ? 's' : ''} required
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm text-muted-foreground">Transfers:</span>
+                                <span className="font-medium text-amber-600">
+                                    {currentRoute.transfers}
+                                </span>
                             </div>
                         )}
+                        <div className="pt-2 border-t border-border">
+                            <div className="text-sm font-medium mb-1">Route:</div>
+                            <div className="text-xs text-muted-foreground">
+                                {currentRoute.lines.join(' → ')}
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
 
             {/* Router status */}
-            {!isRouterReady && geoJsonData && (
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-background p-4 rounded-md border border-border shadow-md z-[1000]">
+            {!isRouterReady && geoJsonData && !routeError && (
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-background/95 backdrop-blur-sm p-6 rounded-lg border border-border shadow-lg z-[1000]">
                     <div className="text-center">
-                        <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
-                        <div className="text-sm">Initializing Pacific Electric network...</div>
+                        <div className="animate-spin h-8 w-8 border-3 border-primary border-t-transparent rounded-full mx-auto mb-3"></div>
+                        <div className="text-sm font-medium">Initializing Pacific Electric network...</div>
+                        <div className="text-xs text-muted-foreground mt-1">This may take a few seconds</div>
                     </div>
                 </div>
             )}
