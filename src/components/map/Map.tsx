@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap, GeoJSON, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { Feature, FeatureCollection, GeoJsonProperties } from 'geojson';
+import { Feature, FeatureCollection } from 'geojson';
+import { PacificElectricRouter, RouteResult } from '@/lib/routing';
 
 // Fix for default Leaflet marker icon in React
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -54,6 +55,7 @@ declare global {
             zoomIn: () => void;
             zoomOut: () => void;
             resetView: () => void;
+            findRoute: () => void;
         };
     }
 }
@@ -65,14 +67,14 @@ const MapEventHandler = ({
     onStartPlaced,
     onEndPlaced
 }: MapEventHandlerProps) => {
-    // We need this variable for the hook, but don't use it directly
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const map = useMapEvents({
+    useMapEvents({
         click(e) {
             if (isPlacingStart) {
-                onStartPlaced([e.latlng.lat, e.latlng.lng]);
+                // Convert to GeoJSON format [longitude, latitude] for consistency
+                onStartPlaced([e.latlng.lng, e.latlng.lat]);
             } else if (isPlacingEnd) {
-                onEndPlaced([e.latlng.lat, e.latlng.lng]);
+                // Convert to GeoJSON format [longitude, latitude] for consistency
+                onEndPlaced([e.latlng.lng, e.latlng.lat]);
             }
         }
     });
@@ -105,13 +107,16 @@ const Map = ({ selectedLines = [] }: MapProps) => {
     const [showAllLines, setShowAllLines] = useState(selectedLines.length === 0);
     const [activeLines, setActiveLines] = useState<string[]>(selectedLines);
     const [geoJsonData, setGeoJsonData] = useState<FeatureCollection | null>(null);
+    const [currentRoute, setCurrentRoute] = useState<RouteResult | null>(null);
+    const [router, setRouter] = useState<PacificElectricRouter | null>(null);
+    const [isRouterReady, setIsRouterReady] = useState(false);
 
     // Reference to the Leaflet map instance
     const mapRef = useRef<L.Map | null>(null);
 
-    // Fetch GeoJSON data
+    // Fetch GeoJSON data and initialize router
     useEffect(() => {
-        const fetchGeoJsonData = async () => {
+        const initializeRouting = async () => {
             try {
                 const response = await fetch('/src/data/GeoJSON/lines.geojson');
                 if (!response.ok) {
@@ -119,12 +124,19 @@ const Map = ({ selectedLines = [] }: MapProps) => {
                 }
                 const data = await response.json();
                 setGeoJsonData(data);
+                
+                // Initialize router
+                const newRouter = new PacificElectricRouter();
+                await newRouter.initialize(data);
+                setRouter(newRouter);
+                setIsRouterReady(true);
+                
             } catch (err) {
-                console.error('Error loading GeoJSON data:', err);
+                console.error('Error loading GeoJSON data or initializing router:', err);
             }
         };
 
-        fetchGeoJsonData();
+        initializeRouting();
     }, []);
 
     // Update active lines when selectedLines prop changes
@@ -172,6 +184,49 @@ const Map = ({ selectedLines = [] }: MapProps) => {
             mapRef.current.setView(defaultPosition, defaultZoom);
         }
     }, []);
+
+    // Route finding function
+    const findRoute = useCallback(() => {
+        if (!router || !isRouterReady) {
+            console.warn('Router not ready');
+            return;
+        }
+        
+        if (!startPosition || !endPosition) {
+            console.warn('Please place both start and end markers on the map');
+            return;
+        }
+
+        try {
+            console.log('Finding route from', startPosition, 'to', endPosition);
+            const routeResult = router.findRoute({
+                startPoint: startPosition,
+                endPoint: endPosition,
+                optimizeFor: 'time',
+                maxWalkingDistance: 2.0 // Increase to 2 miles for initial testing
+            });
+
+            if (routeResult) {
+                setCurrentRoute(routeResult);
+                console.log('Route found:', PacificElectricRouter.formatRouteResult(routeResult));
+            } else {
+                console.warn('No route found between the selected points. Try placing markers closer to Pacific Electric lines.');
+                setCurrentRoute(null);
+            }
+        } catch (error) {
+            console.error('Error finding route:', error);
+            setCurrentRoute(null);
+        }
+    }, [startPosition, endPosition, router, isRouterReady]);
+
+    // Auto-find route when both points are set
+    useEffect(() => {
+        if (startPosition && endPosition && isRouterReady) {
+            findRoute();
+        } else {
+            setCurrentRoute(null);
+        }
+    }, [startPosition, endPosition, isRouterReady, findRoute]);
 
     const handleLineClick = useCallback((lineName: string) => {
         // Toggle the line in the active lines array
@@ -247,14 +302,15 @@ const Map = ({ selectedLines = [] }: MapProps) => {
             startPlacingEnd,
             zoomIn,
             zoomOut,
-            resetView
+            resetView,
+            findRoute
         };
 
         // Cleanup on unmount
         return () => {
             window.mapControls = undefined;
         };
-    }, [startPlacingStart, startPlacingEnd, zoomIn, zoomOut, resetView]);
+    }, [startPlacingStart, startPlacingEnd, zoomIn, zoomOut, resetView, findRoute]);
 
     return (
         <div className="h-full w-full relative">
@@ -289,12 +345,24 @@ const Map = ({ selectedLines = [] }: MapProps) => {
                 <MapController mapRef={mapRef} />
 
                 {startPosition && (
-                    <Marker position={startPosition} icon={startIcon} />
+                    <Marker position={[startPosition[1], startPosition[0]]} icon={startIcon} />
                 )}
 
                 {endPosition && (
-                    <Marker position={endPosition} icon={endIcon} />
+                    <Marker position={[endPosition[1], endPosition[0]]} icon={endIcon} />
                 )}
+
+                {/* Route visualization */}
+                {currentRoute && currentRoute.edges.map((edge, index) => (
+                    <Polyline
+                        key={`route-${index}`}
+                        positions={edge.coordinates}
+                        color="#ff4444"
+                        weight={6}
+                        opacity={0.8}
+                        dashArray="10, 5"
+                    />
+                ))}
             </MapContainer>
 
             {isPlacingStart && (
@@ -306,6 +374,36 @@ const Map = ({ selectedLines = [] }: MapProps) => {
             {isPlacingEnd && (
                 <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-background p-2 rounded-md border border-border shadow-md z-[1000]">
                     Click on the map to place your destination
+                </div>
+            )}
+
+            {/* Route result display */}
+            {currentRoute && (
+                <div className="absolute bottom-4 left-4 bg-background p-4 rounded-md border border-border shadow-md z-[1000] max-w-sm">
+                    <h3 className="font-semibold text-sm mb-2">Pacific Electric Route</h3>
+                    <div className="text-xs space-y-1">
+                        <div className="font-medium">
+                            {PacificElectricRouter.formatRouteResult(currentRoute).summary}
+                        </div>
+                        <div className="text-muted-foreground">
+                            Lines: {currentRoute.lines.join(' → ')}
+                        </div>
+                        {currentRoute.transfers > 0 && (
+                            <div className="text-amber-600">
+                                {currentRoute.transfers} transfer{currentRoute.transfers > 1 ? 's' : ''} required
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Router status */}
+            {!isRouterReady && geoJsonData && (
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-background p-4 rounded-md border border-border shadow-md z-[1000]">
+                    <div className="text-center">
+                        <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
+                        <div className="text-sm">Initializing Pacific Electric network...</div>
+                    </div>
                 </div>
             )}
         </div>

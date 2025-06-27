@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Dock, DockIcon } from '@/components/magicui/dock';
-import { MapPin, Layers, Info, MenuSquare, Plus, Minus, Compass } from 'lucide-react';
+import { MapPin, Layers, Info, MenuSquare, Plus, Minus, Compass, Route } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,7 @@ interface MapDockProps {
     onZoomIn?: () => void;
     onZoomOut?: () => void;
     onResetView?: () => void;
+    onFindRoute?: () => void;
 }
 
 const MapDock: React.FC<MapDockProps> = ({
@@ -25,7 +26,8 @@ const MapDock: React.FC<MapDockProps> = ({
                                              onToggleLayers,
                                              onZoomIn,
                                              onZoomOut,
-                                             onResetView
+                                             onResetView,
+                                             onFindRoute
                                          }) => {
     const [activeMarker, setActiveMarker] = useState<'start' | 'end' | null>(null);
 
@@ -78,6 +80,27 @@ const MapDock: React.FC<MapDockProps> = ({
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p>Place End Marker</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </DockIcon>
+
+                    {/* Route finding button */}
+                    <DockIcon>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={onFindRoute}
+                                    className={cn(
+                                        buttonVariants({ variant: 'ghost', size: 'icon' }),
+                                        "size-12 rounded-full"
+                                    )}
+                                    disabled={!onFindRoute}
+                                >
+                                    <Route className="size-5" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Find Red Car Route</p>
                             </TooltipContent>
                         </Tooltip>
                     </DockIcon>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Feature, FeatureCollection, GeoJsonProperties } from 'geojson';
+import { Feature, FeatureCollection } from 'geojson';
 
 interface PELinesLayerProps {
   showAllLines?: boolean;
@@ -13,9 +13,7 @@ const PELinesLayer = ({ showAllLines = true, activeLines = [], onLineClick }: PE
   const [geoJsonData, setGeoJsonData] = useState<FeatureCollection | null>(null);
   const [error, setError] = useState<string | null>(null);
   
-  // We need this variable for the hook, but don't use it directly
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const map = useMap();
+  useMap();
 
   useEffect(() => {
     const fetchGeoJsonData = async () => {

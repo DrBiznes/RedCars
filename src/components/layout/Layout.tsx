@@ -14,6 +14,7 @@ declare global {
       zoomIn: () => void;
       zoomOut: () => void;
       resetView: () => void;
+      findRoute: () => void;
     };
   }
 }
@@ -25,6 +26,7 @@ interface MapControls {
   zoomIn: () => void;
   zoomOut: () => void;
   resetView: () => void;
+  findRoute: () => void;
 }
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
@@ -42,7 +44,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           startPlacingEnd: window.mapControls.startPlacingEnd,
           zoomIn: window.mapControls.zoomIn,
           zoomOut: window.mapControls.zoomOut,
-          resetView: window.mapControls.resetView
+          resetView: window.mapControls.resetView,
+          findRoute: window.mapControls.findRoute
         });
       } else {
         // Try again in a moment if not available yet
@@ -91,6 +94,12 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const handleFindRoute = () => {
+    if (mapControls) {
+      mapControls.findRoute();
+    }
+  };
+
   const handleToggleInfo = () => {
     setActiveTab('info');
     setShowSidebar(true);
@@ -135,6 +144,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           onZoomIn={handleZoomIn}
           onZoomOut={handleZoomOut}
           onResetView={handleResetView}
+          onFindRoute={handleFindRoute}
         />
       </div>
 
