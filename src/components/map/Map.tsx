@@ -130,6 +130,7 @@ const Map = ({ selectedLines = [] }: MapProps) => {
                 const newRouter = new PacificElectricRouter();
                 await newRouter.initialize(data);
                 setRouter(newRouter);
+                (window as any).router = newRouter;
                 setIsRouterReady(true);
                 
             } catch (err) {
@@ -223,7 +224,7 @@ const Map = ({ selectedLines = [] }: MapProps) => {
                 startPoint: startPosition,
                 endPoint: endPosition,
                 optimizeFor: 'time',
-                maxWalkingDistance: 1.0 // 1 mile max walking distance
+                maxWalkingDistance: 5.0 // 5 mile max walking distance
             });
 
             if (routeResult) {
@@ -336,14 +337,24 @@ const Map = ({ selectedLines = [] }: MapProps) => {
             zoomIn,
             zoomOut,
             resetView,
-            findRoute
+            findRoute,
+            debugRoute: () => {
+                if (!router) {
+                    console.error("Router not initialized");
+                    return;
+                }
+                const start = [-118.15486907958986, 33.976249965479816] as [number, number];
+                const end = [-118.3766555786133, 34.02335591726823] as [number, number];
+                console.log("--- Running Debug --- ");
+                router.debugConnectivity(start, end);
+            }
         };
 
         // Cleanup on unmount
         return () => {
             window.mapControls = undefined;
         };
-    }, [startPlacingStart, startPlacingEnd, zoomIn, zoomOut, resetView, findRoute]);
+    }, [startPlacingStart, startPlacingEnd, zoomIn, zoomOut, resetView, findRoute, router]);
 
     return (
         <div className="h-full w-full relative">

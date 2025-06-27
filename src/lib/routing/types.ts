@@ -19,8 +19,9 @@ export interface RouteEdge {
 export interface RouteGraph {
   nodes: Map<string, RouteNode>;
   edges: Map<string, RouteEdge>;
-  adjacencyList: Map<string, string[]>;
+  adjacencyList: Map<string, string[]>; // This will store edge IDs
 }
+
 
 export interface RouteResult {
   path: RouteNode[];

@@ -292,4 +292,118 @@ export class PacificElectricRouter {
     
     return errors;
   }
+
+  /**
+   * Debugging function to check graph connectivity
+   */
+  debugConnectivity(startPoint: [number, number], endPoint: [number, number]): void {
+    if (!this.graph || !this.routeFinder) {
+      console.error("Router not initialized.");
+      return;
+    }
+
+    console.log("--- Graph Connectivity Debug ---");
+
+    // 1. Straight line distance
+    const directDistance = calculateDistance(startPoint, endPoint);
+    console.log(`Straight-line distance: ${directDistance.toFixed(2)} miles`);
+
+    // 2. Network stats
+    console.log("Network Statistics:", this.getNetworkStats());
+
+    // 3. Graph connectivity (Tarjan's algorithm or similar)
+    const visited = new Set<string>();
+    const components: string[][] = [];
+    this.graph.nodes.forEach(node => {
+      if (!visited.has(node.id)) {
+        const component: string[] = [];
+        const stack = [node.id];
+        visited.add(node.id);
+        while (stack.length > 0) {
+          const currentId = stack.pop()!;
+          component.push(currentId);
+          const neighbors = this.graph!.adjacencyList.get(currentId) || [];
+          neighbors.forEach(edgeId => {
+            const edge = this.graph!.edges.get(edgeId)!;
+            const neighborId = edge.from === currentId ? edge.to : edge.from;
+            if (!visited.has(neighborId)) {
+              visited.add(neighborId);
+              stack.push(neighborId);
+            }
+          });
+        }
+        components.push(component);
+      }
+    });
+    console.log(`Graph connectivity: Found ${components.length} connected component(s).`);
+    if (components.length > 1) {
+        console.warn("Multiple components detected. The graph is not fully connected.");
+        components.forEach((c, i) => console.log(`  Component ${i+1}: ${c.length} nodes`));
+    }
+
+    // 4. Access point selection
+    const startAccess = this.routeFinder.findClosestAccessPoint(startPoint);
+    const endAccess = this.routeFinder.findClosestAccessPoint(endPoint);
+
+    if (startAccess) {
+        console.log("Start Access Point:", {
+            line: startAccess.edge.line,
+            distance: `${startAccess.distance.toFixed(2)} miles`,
+            point: startAccess.point
+        });
+    } else {
+        console.error("Could not find a start access point.");
+    }
+
+    if (endAccess) {
+        console.log("End Access Point:", {
+            line: endAccess.edge.line,
+            distance: `${endAccess.distance.toFixed(2)} miles`,
+            point: endAccess.point
+        });
+    } else {
+        console.error("Could not find an end access point.");
+    }
+    
+    if(startAccess && endAccess) {
+        const startComponent = components.findIndex(c => c.includes(startAccess!.edge.from));
+        const endComponent = components.findIndex(c => c.includes(endAccess!.edge.from));
+        console.log(`Start access point is in component: ${startComponent}`);
+        console.log(`End access point is in component: ${endComponent}`);
+        if(startComponent !== endComponent) {
+            console.error("Routing impossible: Start and end points are in different connected components of the graph.");
+        }
+    }
+  }
+
+  debugNetworkCoverage(centerPoint: [number, number], searchRadiusMiles: number): void {
+    if (!this.graph) {
+        console.error("Graph not initialized.");
+        return;
+    }
+
+    console.log(`--- Network Coverage Debug ---`);
+    console.log(`Searching for nodes within ${searchRadiusMiles} miles of [${centerPoint.join(', ')}]`);
+
+    const nearbyNodes: { node: any, distance: number }[] = [];
+
+    this.graph.nodes.forEach(node => {
+        const distance = calculateDistance(centerPoint, node.coordinates);
+        if (distance <= searchRadiusMiles) {
+            nearbyNodes.push({ node, distance });
+        }
+    });
+
+    console.log(`Found ${nearbyNodes.length} nodes within the radius.`);
+
+    if (nearbyNodes.length > 0) {
+        nearbyNodes.sort((a, b) => a.distance - b.distance);
+        console.log("Closest 10 nodes:");
+        nearbyNodes.slice(0, 10).forEach(item => {
+            console.log(`  - Node ID: ${item.node.id}, Type: ${item.node.type}, Lines: ${item.node.lines.join(', ')}, Distance: ${item.distance.toFixed(2)} miles`);
+        });
+    } else {
+        console.warn("No Pacific Electric network nodes found in this area. This region may not be covered in the dataset.");
+    }
+  }
 }

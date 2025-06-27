@@ -23,7 +23,7 @@ export class GraphBuilder {
   
   // Configuration constants
   private readonly INTERSECTION_TOLERANCE = 0.0001; // ~10 meters for geometric intersections
-  private readonly PROXIMITY_THRESHOLD = 0.0005; // ~50 meters for station transfers
+  private readonly PROXIMITY_THRESHOLD = 0.05; // ~500 feet for station transfers
   private readonly NODE_MERGE_RADIUS = 0.0002; // ~20 meters for merging nearby nodes
   private readonly STATION_SPACING = 0.5; // Approximate miles between stations
 
@@ -123,28 +123,6 @@ export class GraphBuilder {
     intersections.forEach(point => {
       this.addNodeCandidate(point, [line1Name, line2Name], 'intersection', 1.0);
     });
-    
-    // Check for proximity-based transfer points
-    for (let i = 0; i < coords1.length; i++) {
-      for (let j = 0; j < coords2.length; j++) {
-        const distance = calculateDistance(coords1[i], coords2[j]);
-        
-        if (distance <= this.PROXIMITY_THRESHOLD && distance > this.INTERSECTION_TOLERANCE) {
-          // Create a transfer point at the midpoint
-          const transferPoint: [number, number] = [
-            (coords1[i][0] + coords2[j][0]) / 2,
-            (coords1[i][1] + coords2[j][1]) / 2
-          ];
-          
-          this.addNodeCandidate(
-            transferPoint, 
-            [line1Name, line2Name], 
-            'station', 
-            0.8 - (distance / this.PROXIMITY_THRESHOLD) * 0.3
-          );
-        }
-      }
-    }
   }
 
   private addNodeCandidate(
@@ -191,52 +169,44 @@ export class GraphBuilder {
   }
 
   private createNodesFromCandidates(): void {
-    // Sort candidates by confidence
-    const sortedCandidates = Array.from(this.nodeCandidates.entries())
-      .sort((a, b) => b[1].confidence - a[1].confidence);
-    
-    const processedKeys = new Set<string>();
-    
-    sortedCandidates.forEach(([key, candidate]) => {
-      if (processedKeys.has(key)) return;
-      
-      // Find all nearby candidates to merge
-      const nearbyKeys = [key];
-      const mergedLines = new Set(candidate.lines);
-      let bestType = candidate.type;
-      
-      sortedCandidates.forEach(([otherKey, otherCandidate]) => {
-        if (key === otherKey || processedKeys.has(otherKey)) return;
-        
-        const distance = calculateDistance(candidate.coordinates, otherCandidate.coordinates);
-        if (distance <= this.NODE_MERGE_RADIUS) {
-          nearbyKeys.push(otherKey);
-          otherCandidate.lines.forEach(line => mergedLines.add(line));
-          
-          // Update type priority
-          if (otherCandidate.type === 'intersection' || 
-              (otherCandidate.type === 'endpoint' && bestType === 'station')) {
-            bestType = otherCandidate.type;
-          }
+    const sortedCandidates = Array.from(this.nodeCandidates.values())
+      .sort((a, b) => b.confidence - a.confidence);
+
+    const createdNodes: RouteNode[] = [];
+
+    sortedCandidates.forEach(candidate => {
+        let merged = false;
+        for (const existingNode of createdNodes) {
+            const distance = calculateDistance(candidate.coordinates, existingNode.coordinates);
+            if (distance < this.NODE_MERGE_RADIUS) {
+                candidate.lines.forEach(line => {
+                    if (!existingNode.lines.includes(line)) {
+                        existingNode.lines.push(line);
+                    }
+                });
+                if (candidate.type === 'intersection' && existingNode.type !== 'intersection') {
+                    existingNode.type = 'intersection';
+                }
+                merged = true;
+                break;
+            }
         }
-      });
-      
-      // Mark all nearby candidates as processed
-      nearbyKeys.forEach(k => processedKeys.add(k));
-      
-      // Create the merged node
-      const nodeId = `node_${this.nodeIdCounter++}`;
-      const node: RouteNode = {
-        id: nodeId,
-        coordinates: candidate.coordinates,
-        lines: Array.from(mergedLines),
-        type: bestType
-      };
-      
-      this.graph.nodes.set(nodeId, node);
-      this.graph.adjacencyList.set(nodeId, []);
+
+        if (!merged) {
+            const nodeId = `node_${this.nodeIdCounter++}`;
+            const newNode: RouteNode = {
+                id: nodeId,
+                coordinates: candidate.coordinates,
+                lines: Array.from(candidate.lines),
+                type: candidate.type,
+            };
+            this.graph.nodes.set(nodeId, newNode);
+            this.graph.adjacencyList.set(nodeId, []);
+            createdNodes.push(newNode);
+        }
     });
   }
+
 
   private createEdgesFromLines(lineFeatures: Feature[]): void {
     lineFeatures.forEach(feature => {
@@ -250,7 +220,8 @@ export class GraphBuilder {
       const nodesOnLine = this.findNodesOnLine(coordinates, lineName);
       
       if (nodesOnLine.length < 2) {
-        console.warn(`Line '${lineName}' has insufficient nodes`);
+        // This is expected for very short lines or spurs, so we can demote it from a warning
+        // console.warn(`Line '${lineName}' has insufficient nodes to create edges.`);
         return;
       }
       
@@ -262,8 +233,8 @@ export class GraphBuilder {
         // Extract the portion of the line between these nodes
         const edgeCoords = this.extractEdgeCoordinates(
           coordinates,
-          nodesOnLine[i].position,
-          nodesOnLine[i + 1].position
+          fromNode.coordinates,
+          toNode.coordinates
         );
         
         const distance = calculateLineDistance(edgeCoords);
@@ -295,114 +266,73 @@ export class GraphBuilder {
     this.graph.nodes.forEach(node => {
       if (!node.lines.includes(lineName)) return;
       
-      // Find the closest position on the line
-      let minDistance = Infinity;
-      let bestPosition = 0;
-      let totalDistance = 0;
+      const projection = projectPointToLine(node.coordinates, lineCoords);
       
-      for (let i = 0; i < lineCoords.length - 1; i++) {
-        const projection = projectPointToLine(
-          node.coordinates,
-          lineCoords.slice(i, i + 2)
-        );
-        
-        if (projection.distance < minDistance) {
-          minDistance = projection.distance;
-          bestPosition = totalDistance + 
-            calculateDistance(lineCoords[i], projection.point);
-        }
-        
-        totalDistance += calculateDistance(lineCoords[i], lineCoords[i + 1]);
+      let position = 0;
+      for (let i = 0; i < projection.segmentIndex; i++) {
+        position += calculateDistance(lineCoords[i], lineCoords[i+1]);
       }
-      
-      // Only include nodes that are actually on or very close to the line
-      if (minDistance <= this.NODE_MERGE_RADIUS) {
-        nodesOnLine.push({ node, position: bestPosition });
+      position += calculateDistance(lineCoords[projection.segmentIndex], projection.point);
+
+      if (projection.distance <= this.NODE_MERGE_RADIUS * 2) {
+        nodesOnLine.push({ node, position });
       }
     });
     
-    // Sort by position along the line
     nodesOnLine.sort((a, b) => a.position - b.position);
     
     return nodesOnLine;
   }
 
-  private extractEdgeCoordinates(
-    lineCoords: [number, number][],
-    startPosition: number,
-    endPosition: number
-  ): [number, number][] {
-    const result: [number, number][] = [];
-    let currentPosition = 0;
-    let started = false;
-    
-    for (let i = 0; i < lineCoords.length - 1; i++) {
-      const segmentLength = calculateDistance(lineCoords[i], lineCoords[i + 1]);
-      
-      if (!started && currentPosition + segmentLength >= startPosition) {
-        started = true;
-        result.push(lineCoords[i]);
-      }
-      
-      if (started) {
-        result.push(lineCoords[i + 1]);
+    private extractEdgeCoordinates(
+        lineCoords: [number, number][],
+        startCoord: [number, number],
+        endCoord: [number, number]
+    ): [number, number][] {
+        const startProj = projectPointToLine(startCoord, lineCoords);
+        const endProj = projectPointToLine(endCoord, lineCoords);
+
+        // Ensure startIndex is before endIndex
+        const [start, end] = startProj.position <= endProj.position ? [startProj, endProj] : [endProj, startProj];
         
-        if (currentPosition + segmentLength >= endPosition) {
-          break;
+        const result: [number, number][] = [start.point];
+
+        for (let i = start.segmentIndex; i <= end.segmentIndex; i++) {
+            if(i > start.segmentIndex) {
+                result.push(lineCoords[i]);
+            }
         }
-      }
-      
-      currentPosition += segmentLength;
+        result.push(end.point);
+        
+        return result;
     }
-    
-    return result.length >= 2 ? result : [lineCoords[0], lineCoords[lineCoords.length - 1]];
-  }
 
   private createTransferConnections(): void {
-    const transferPairs: Array<[string, string, number]> = [];
-    
-    this.graph.nodes.forEach((node1, id1) => {
-      if (node1.lines.length < 2) return; // Skip nodes with only one line
-      
-      this.graph.nodes.forEach((node2, id2) => {
-        if (id1 >= id2) return; // Avoid duplicates
-        
-        // Check if nodes share any lines
-        const sharedLines = node1.lines.filter(line => node2.lines.includes(line));
-        if (sharedLines.length > 0) return; // Already connected via shared line
-        
-        // Check if nodes have lines that could transfer
-        const distance = calculateDistance(node1.coordinates, node2.coordinates);
-        if (distance <= this.PROXIMITY_THRESHOLD) {
-          transferPairs.push([id1, id2, distance]);
+    const nodes = Array.from(this.graph.nodes.values());
+    for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+            const node1 = nodes[i];
+            const node2 = nodes[j];
+            const distance = calculateDistance(node1.coordinates, node2.coordinates);
+
+            if (distance < this.PROXIMITY_THRESHOLD) {
+                const hasSharedLines = node1.lines.some(line => node2.lines.includes(line));
+                if (!hasSharedLines) {
+                    const walkingSpeedMph = 3.0;
+                    const transferTimeMinutes = (distance / walkingSpeedMph) * 60 + 2; // 2 min penalty
+                    this.createEdge(
+                        node1.id,
+                        node2.id,
+                        'TRANSFER',
+                        distance,
+                        transferTimeMinutes,
+                        [node1.coordinates, node2.coordinates],
+                        'local'
+                    );
+                }
+            }
         }
-      });
-    });
-    
-    // Create transfer edges
-    transferPairs.forEach(([id1, id2, distance]) => {
-      const walkingSpeedMph = 3.0;
-      const transferTimeMinutes = (distance / walkingSpeedMph) * 60 + 2; // Add 2 minutes for transfer
-      
-      const edgeId = `transfer_${this.edgeIdCounter++}`;
-      const edge: RouteEdge = {
-        id: edgeId,
-        from: id1,
-        to: id2,
-        line: 'TRANSFER',
-        distance,
-        travelTimeMinutes: transferTimeMinutes,
-        coordinates: [
-          this.graph.nodes.get(id1)!.coordinates,
-          this.graph.nodes.get(id2)!.coordinates
-        ],
-        type: 'local'
-      };
-      
-      this.graph.edges.set(edgeId, edge);
-      this.graph.adjacencyList.get(id1)?.push(id2);
-      this.graph.adjacencyList.get(id2)?.push(id1);
-    });
+    }
   }
 
   private createEdge(
@@ -430,8 +360,8 @@ export class GraphBuilder {
     this.graph.edges.set(edgeId, edge);
     
     // Update adjacency list (bidirectional)
-    this.graph.adjacencyList.get(fromId)?.push(toId);
-    this.graph.adjacencyList.get(toId)?.push(fromId);
+    this.graph.adjacencyList.get(fromId)?.push(edgeId);
+    this.graph.adjacencyList.get(toId)?.push(edgeId);
   }
 
   private validateAndOptimizeGraph(): void {
@@ -484,11 +414,14 @@ export class GraphBuilder {
     visited.add(nodeId);
     component.add(nodeId);
     
-    const neighbors = this.graph.adjacencyList.get(nodeId) || [];
-    neighbors.forEach(neighborId => {
-      if (!visited.has(neighborId)) {
-        this.dfs(neighborId, visited, component);
-      }
+    const neighborEdges = this.graph.adjacencyList.get(nodeId) || [];
+    neighborEdges.forEach(edgeId => {
+        const edge = this.graph.edges.get(edgeId);
+        if(!edge) return;
+        const neighborId = edge.from === nodeId ? edge.to : edge.from;
+        if (!visited.has(neighborId)) {
+            this.dfs(neighborId, visited, component);
+        }
     });
   }
 
@@ -514,24 +447,15 @@ export class GraphBuilder {
       const walkingSpeedMph = 3.0;
       const transferTimeMinutes = (minDistance / walkingSpeedMph) * 60 + 5;
       
-      const edgeId = `connect_${this.edgeIdCounter++}`;
-      const edge: RouteEdge = {
-        id: edgeId,
-        from: id1,
-        to: id2,
-        line: 'CONNECTOR',
-        distance: minDistance,
-        travelTimeMinutes: transferTimeMinutes,
-        coordinates: [
-          this.graph.nodes.get(id1)!.coordinates,
-          this.graph.nodes.get(id2)!.coordinates
-        ],
-        type: 'local'
-      };
-      
-      this.graph.edges.set(edgeId, edge);
-      this.graph.adjacencyList.get(id1)?.push(id2);
-      this.graph.adjacencyList.get(id2)?.push(id1);
+      this.createEdge(
+        id1,
+        id2,
+        'CONNECTOR',
+        minDistance,
+        transferTimeMinutes,
+        [this.graph.nodes.get(id1)!.coordinates, this.graph.nodes.get(id2)!.coordinates],
+        'local'
+      );
       
       console.log(`Connected components with ${minDistance.toFixed(2)} mile connector`);
     }
