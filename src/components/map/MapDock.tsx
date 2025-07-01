@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Dock, DockIcon } from '@/components/magicui/dock';
-import { MapPin, Layers, Info, MenuSquare, Plus, Minus, Compass } from 'lucide-react';
+import { MapPin, Layers, Info, MenuSquare, Plus, Minus, Compass, Route } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 interface MapDockProps {
     onStartMarkerSelect: () => void;
     onEndMarkerSelect: () => void;
+    onCalculateRoute: () => void;
     onToggleSidebar: () => void;
     onToggleInfo: () => void;
     onToggleLayers: () => void;
@@ -20,6 +21,7 @@ interface MapDockProps {
 const MapDock: React.FC<MapDockProps> = ({
                                              onStartMarkerSelect,
                                              onEndMarkerSelect,
+                                             onCalculateRoute,
                                              onToggleSidebar,
                                              onToggleInfo,
                                              onToggleLayers,
@@ -78,6 +80,25 @@ const MapDock: React.FC<MapDockProps> = ({
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p>Place End Marker</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </DockIcon>
+
+                    <DockIcon>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={onCalculateRoute}
+                                    className={cn(
+                                        buttonVariants({ variant: 'ghost', size: 'icon' }),
+                                        "size-12 rounded-full"
+                                    )}
+                                >
+                                    <Route className="size-5" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Calculate Route</p>
                             </TooltipContent>
                         </Tooltip>
                     </DockIcon>

@@ -1,0 +1,19 @@
+
+{
+  "default": {
+    "normal": 25,
+    "local": 15,
+    "express": 35
+  },
+  "lines": {
+    "Venice Short Line": {
+      "averageSpeed": 22,
+      "peakHourSpeed": 18
+    },
+    "Hollywood/Highland - LAX": {
+        "averageSpeed": 30,
+        "peakHourSpeed": 20
+    }
+  },
+  "transferPenalty": 5
+}

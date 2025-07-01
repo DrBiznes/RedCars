@@ -2,7 +2,13 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { Feature, FeatureCollection, GeoJsonProperties } from 'geojson';
+import { Feature, FeatureCollection } from 'geojson';
+import { RouteResult, Station } from '../../routing/types/routing.types';
+import { generateStations } from '../../routing/graph/StationGenerator';
+import { buildGraph } from '../../routing/graph/GraphBuilder';
+import { findRoute } from '../../routing/algorithms/RouteFinder';
+import RouteDisplay from '../routing/RouteDisplay';
+import { StationNode } from '../../routing/graph/Node';
 
 // Fix for default Leaflet marker icon in React
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -43,6 +49,10 @@ interface MapEventHandlerProps {
 
 interface MapProps {
     selectedLines?: string[];
+    onRouteCalculated: (route: RouteResult | null) => void;
+    onCalculating: (status: boolean) => void;
+    route: RouteResult | null;
+    isCalculating: boolean;
 }
 
 // Global window interface update for map controls
@@ -51,6 +61,7 @@ declare global {
         mapControls?: {
             startPlacingStart: () => void;
             startPlacingEnd: () => void;
+            calculateRoute: () => void;
             zoomIn: () => void;
             zoomOut: () => void;
             resetView: () => void;
@@ -93,7 +104,7 @@ const MapController = ({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null
     return null;
 };
 
-const Map = ({ selectedLines = [] }: MapProps) => {
+const Map = ({ selectedLines = [], onRouteCalculated, onCalculating, route, isCalculating }: MapProps) => {
     // Los Angeles coordinates
     const defaultPosition: [number, number] = [34.0522, -118.2437];
     const defaultZoom = 10;
@@ -104,7 +115,10 @@ const Map = ({ selectedLines = [] }: MapProps) => {
     const [isPlacingEnd, setIsPlacingEnd] = useState(false);
     const [showAllLines, setShowAllLines] = useState(selectedLines.length === 0);
     const [activeLines, setActiveLines] = useState<string[]>(selectedLines);
-    const [geoJsonData, setGeoJsonData] = useState<FeatureCollection | null>(null);
+    const [linesGeoJson, setLinesGeoJson] = useState<FeatureCollection | null>(null);
+    const [stationsGeoJson, setStationsGeoJson] = useState<FeatureCollection | null>(null);
+    const [stations, setStations] = useState<Station[]>([]);
+    const [routingGraph, setRoutingGraph] = useState<Map<string, StationNode> | null>(null);
 
     // Reference to the Leaflet map instance
     const mapRef = useRef<L.Map | null>(null);
@@ -113,12 +127,20 @@ const Map = ({ selectedLines = [] }: MapProps) => {
     useEffect(() => {
         const fetchGeoJsonData = async () => {
             try {
-                const response = await fetch('/src/data/GeoJSON/lines.geojson');
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch GeoJSON data: ${response.status}`);
+                const linesResponse = await fetch('/src/data/GeoJSON/lines.geojson');
+                if (!linesResponse.ok) {
+                    throw new Error(`Failed to fetch lines.geojson: ${linesResponse.status}`);
                 }
-                const data = await response.json();
-                setGeoJsonData(data);
+                const linesData = await linesResponse.json();
+                setLinesGeoJson(linesData);
+
+                const stationsResponse = await fetch('/src/data/GeoJSON/stations.geojson');
+                if (!stationsResponse.ok) {
+                    throw new Error(`Failed to fetch stations.geojson: ${stationsResponse.status}`);
+                }
+                const stationsData = await stationsResponse.json();
+                setStationsGeoJson(stationsData);
+
             } catch (err) {
                 console.error('Error loading GeoJSON data:', err);
             }
@@ -126,6 +148,16 @@ const Map = ({ selectedLines = [] }: MapProps) => {
 
         fetchGeoJsonData();
     }, []);
+
+    // Build routing graph when data is ready
+    useEffect(() => {
+        if (linesGeoJson && stationsGeoJson) {
+            const allStations = generateStations(stationsGeoJson as any, linesGeoJson as any);
+            const graph = buildGraph(allStations);
+            setStations(allStations);
+            setRoutingGraph(graph);
+        }
+    }, [linesGeoJson, stationsGeoJson]);
 
     // Update active lines when selectedLines prop changes
     useEffect(() => {
@@ -154,6 +186,25 @@ const Map = ({ selectedLines = [] }: MapProps) => {
         setIsPlacingEnd(false);
     }, []);
 
+    const calculateRoute = useCallback(() => {
+        if (!startPosition || !endPosition || !routingGraph || stations.length === 0) {
+            onRouteCalculated(null);
+            return;
+        }
+        onCalculating(true);
+        onRouteCalculated(null);
+
+        const startLngLat: [number, number] = [startPosition[1], startPosition[0]];
+        const endLngLat: [number, number] = [endPosition[1], endPosition[0]];
+
+        setTimeout(() => {
+            const calculatedRoute = findRoute(startLngLat, endLngLat, stations, routingGraph);
+            onRouteCalculated(calculatedRoute);
+            onCalculating(false);
+        }, 50);
+
+    }, [startPosition, endPosition, routingGraph, stations, onRouteCalculated, onCalculating]);
+
     // Map control functions
     const zoomIn = useCallback(() => {
         if (mapRef.current) {
@@ -174,22 +225,18 @@ const Map = ({ selectedLines = [] }: MapProps) => {
     }, []);
 
     const handleLineClick = useCallback((lineName: string) => {
-        // Toggle the line in the active lines array
         if (activeLines.includes(lineName)) {
             setActiveLines(activeLines.filter(name => name !== lineName));
         } else {
             setActiveLines([...activeLines, lineName]);
         }
         
-        // If we're selecting a specific line, turn off "show all lines"
         if (showAllLines) {
             setShowAllLines(false);
         }
     }, [activeLines, showAllLines]);
 
-    // GeoJSON styling - fix by defining it as a function that returns the style function
     const getStyleFunction = useCallback(() => {
-        // This function returns the actual style function that GeoJSON component will use
         return (feature?: Feature<any, any>) => {
             if (!feature || !feature.properties) {
                 return {
@@ -218,7 +265,6 @@ const Map = ({ selectedLines = [] }: MapProps) => {
         };
     }, [showAllLines, activeLines]);
 
-    // GeoJSON popup and events
     const onEachFeature = useCallback((feature: Feature, layer: L.Layer) => {
         if (feature.properties) {
             const lineName = feature.properties.Name as string | undefined;
@@ -245,16 +291,16 @@ const Map = ({ selectedLines = [] }: MapProps) => {
         window.mapControls = {
             startPlacingStart,
             startPlacingEnd,
+            calculateRoute,
             zoomIn,
             zoomOut,
             resetView
         };
 
-        // Cleanup on unmount
         return () => {
             window.mapControls = undefined;
         };
-    }, [startPlacingStart, startPlacingEnd, zoomIn, zoomOut, resetView]);
+    }, [startPlacingStart, startPlacingEnd, calculateRoute, zoomIn, zoomOut, resetView]);
 
     return (
         <div className="h-full w-full relative">
@@ -262,22 +308,24 @@ const Map = ({ selectedLines = [] }: MapProps) => {
                 center={defaultPosition}
                 zoom={defaultZoom}
                 style={{ height: '100%', width: '100%' }}
-                zoomControl={false} // Hide default zoom control
-                attributionControl={true} // Keep attribution but we'll style it
-                className="leaflet-container-custom" // Add custom class for styling
+                zoomControl={false}
+                attributionControl={true}
+                className="leaflet-container-custom"
             >
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
 
-                {geoJsonData && (
+                {linesGeoJson && (
                     <GeoJSON 
-                        data={geoJsonData} 
+                        data={linesGeoJson} 
                         style={getStyleFunction()}
                         onEachFeature={onEachFeature}
                     />
                 )}
+
+                <RouteDisplay route={route} />
 
                 <MapEventHandler
                     isPlacingStart={isPlacingStart}
@@ -306,6 +354,12 @@ const Map = ({ selectedLines = [] }: MapProps) => {
             {isPlacingEnd && (
                 <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-background p-2 rounded-md border border-border shadow-md z-[1000]">
                     Click on the map to place your destination
+                </div>
+            )}
+
+            {isCalculating && (
+                 <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-background p-2 rounded-md border border-border shadow-md z-[1000]">
+                    Calculating route...
                 </div>
             )}
         </div>

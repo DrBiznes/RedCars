@@ -4,6 +4,7 @@ import Footer from './Footer';
 import Sidebar from "@/components/sidebar/Sidebar";
 import Map from "@/components/map/Map";
 import MapDock from "@/components/map/MapDock";
+import { RouteResult } from '../../routing/types/routing.types';
 
 // Update the window interface to match window.mapControls
 declare global {
@@ -11,6 +12,7 @@ declare global {
     mapControls?: {
       startPlacingStart: () => void;
       startPlacingEnd: () => void;
+      calculateRoute: () => void;
       zoomIn: () => void;
       zoomOut: () => void;
       resetView: () => void;
@@ -22,12 +24,22 @@ declare global {
 interface MapControls {
   startPlacingStart: () => void;
   startPlacingEnd: () => void;
+  calculateRoute: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
   resetView: () => void;
 }
 
-const Layout = ({ children }: { children: React.ReactNode }) => {
+interface LayoutProps {
+    sidebarContent: React.ReactNode;
+    onRouteCalculated: (route: RouteResult | null) => void;
+    onCalculating: (status: boolean) => void;
+    route: RouteResult | null;
+    isCalculating: boolean;
+    children?: React.ReactNode;
+}
+
+const Layout: React.FC<LayoutProps> = ({ sidebarContent, onRouteCalculated, onCalculating, route, isCalculating }) => {
   const [showSidebar, setShowSidebar] = useState(false);
   const [mapControls, setMapControls] = useState<MapControls | null>(null);
   const [selectedLines, setSelectedLines] = useState<string[]>([]);
@@ -37,13 +49,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const checkForMapControls = () => {
       if (window.mapControls) {
-        setMapControls({
-          startPlacingStart: window.mapControls.startPlacingStart,
-          startPlacingEnd: window.mapControls.startPlacingEnd,
-          zoomIn: window.mapControls.zoomIn,
-          zoomOut: window.mapControls.zoomOut,
-          resetView: window.mapControls.resetView
-        });
+        setMapControls(window.mapControls);
       } else {
         // Try again in a moment if not available yet
         setTimeout(checkForMapControls, 500);
@@ -62,33 +68,31 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   };
 
   const handleStartMarkerSelect = () => {
-    if (mapControls) {
-      mapControls.startPlacingStart();
-    }
+    if (mapControls) mapControls.startPlacingStart();
   };
 
   const handleEndMarkerSelect = () => {
-    if (mapControls) {
-      mapControls.startPlacingEnd();
-    }
+    if (mapControls) mapControls.startPlacingEnd();
+  };
+
+  const handleCalculateRoute = () => {
+      if (mapControls) {
+          setActiveTab('results');
+          setShowSidebar(true);
+          mapControls.calculateRoute();
+      }
   };
 
   const handleZoomIn = () => {
-    if (mapControls) {
-      mapControls.zoomIn();
-    }
+    if (mapControls) mapControls.zoomIn();
   };
 
   const handleZoomOut = () => {
-    if (mapControls) {
-      mapControls.zoomOut();
-    }
+    if (mapControls) mapControls.zoomOut();
   };
 
   const handleResetView = () => {
-    if (mapControls) {
-      mapControls.resetView();
-    }
+    if (mapControls) mapControls.resetView();
   };
 
   const handleToggleInfo = () => {
@@ -110,25 +114,29 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       <Header />
 
       <div className="flex-1 relative overflow-hidden">
-        {/* Main content (map) always takes full width */}
         <main className="w-full h-full">
-          <Map selectedLines={selectedLines} />
-          {children}
+          <Map 
+            selectedLines={selectedLines} 
+            onRouteCalculated={onRouteCalculated}
+            onCalculating={onCalculating}
+            route={route}
+            isCalculating={isCalculating}
+          />
         </main>
 
-        {/* Sidebar that slides over the map */}
         <Sidebar
           onClose={toggleSidebar}
           isOpen={showSidebar}
           defaultTab={activeTab}
           onLinesChange={handleLinesChange}
           selectedLines={selectedLines}
+          sidebarContent={sidebarContent}
         />
 
-        {/* Position the dock absolutely relative to the main container so it's above the map */}
         <MapDock
           onStartMarkerSelect={handleStartMarkerSelect}
           onEndMarkerSelect={handleEndMarkerSelect}
+          onCalculateRoute={handleCalculateRoute}
           onToggleSidebar={toggleSidebar}
           onToggleInfo={handleToggleInfo}
           onToggleLayers={handleToggleLayers}

@@ -11,6 +11,7 @@ interface SidebarProps {
     isOpen: boolean;
     onLinesChange?: (lines: string[]) => void;
     selectedLines?: string[];
+    sidebarContent?: React.ReactNode;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -18,7 +19,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     defaultTab = 'results', 
     isOpen,
     onLinesChange = () => {},
-    selectedLines = []
+    selectedLines = [],
+    sidebarContent
 }) => {
     const [activeTab, setActiveTab] = useState(defaultTab);
 
@@ -54,39 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                 <div className="p-4 flex-1 overflow-auto">
                     <TabsContent value="results" className="h-full mt-0">
-                        {/* Results tab content */}
-                        <div className="flex flex-col gap-4">
-                            <div className="p-4 border border-border rounded-md bg-accent/10">
-                                <h3 className="font-medium mb-2">Route Information</h3>
-                                <div className="space-y-2 text-sm">
-                                    <p>Set your start and end points on the map to see route comparison.</p>
-                                </div>
-                            </div>
-
-                            <div className="p-4 border border-border rounded-md">
-                                <h3 className="font-medium mb-2">Red Car Route</h3>
-                                <div className="flex justify-between mb-2">
-                                    <span className="text-sm">Travel Time:</span>
-                                    <span className="text-sm font-medium">--</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-sm">Distance:</span>
-                                    <span className="text-sm font-medium">--</span>
-                                </div>
-                            </div>
-
-                            <div className="p-4 border border-border rounded-md">
-                                <h3 className="font-medium mb-2">Modern Transit</h3>
-                                <div className="flex justify-between mb-2">
-                                    <span className="text-sm">Travel Time:</span>
-                                    <span className="text-sm font-medium">--</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-sm">Distance:</span>
-                                    <span className="text-sm font-medium">--</span>
-                                </div>
-                            </div>
-                        </div>
+                        {sidebarContent}
                     </TabsContent>
 
                     <TabsContent value="info" className="h-full mt-0">
