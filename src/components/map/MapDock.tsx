@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Dock, DockIcon } from '@/components/magicui/dock';
-import { MapPin, Layers, Info, MenuSquare, Plus, Minus, Compass } from 'lucide-react';
+import { MapPin, Layers, Info, MenuSquare, Plus, Minus, Compass, Route, X, Navigation } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -39,6 +39,53 @@ const MapDock: React.FC<MapDockProps> = ({
         onEndMarkerSelect();
     };
 
+    const handleStartMarkerClickWithMap = () => {
+        if (window.mapControls?.startPlacingStart) {
+            window.mapControls.startPlacingStart();
+        }
+        handleStartMarkerClick();
+    };
+
+    const handleEndMarkerClickWithMap = () => {
+        if (window.mapControls?.startPlacingEnd) {
+            window.mapControls.startPlacingEnd();
+        }
+        handleEndMarkerClick();
+    };
+
+    const handleZoomIn = () => {
+        if (window.mapControls?.zoomIn) {
+            window.mapControls.zoomIn();
+        }
+        onZoomIn?.();
+    };
+
+    const handleZoomOut = () => {
+        if (window.mapControls?.zoomOut) {
+            window.mapControls.zoomOut();
+        }
+        onZoomOut?.();
+    };
+
+    const handleResetView = () => {
+        if (window.mapControls?.resetView) {
+            window.mapControls.resetView();
+        }
+        onResetView?.();
+    };
+
+    const handleCalculateRoute = () => {
+        if (window.mapControls?.calculateRoute) {
+            window.mapControls.calculateRoute();
+        }
+    };
+
+    const handleClearRoute = () => {
+        if (window.mapControls?.clearRoute) {
+            window.mapControls.clearRoute();
+        }
+    };
+
     return (
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-[1000]">
             <TooltipProvider>
@@ -48,13 +95,13 @@ const MapDock: React.FC<MapDockProps> = ({
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <button
-                                    onClick={handleStartMarkerClick}
+                                    onClick={handleStartMarkerClickWithMap}
                                     className={cn(
                                         buttonVariants({ variant: activeMarker === 'start' ? 'default' : 'ghost', size: 'icon' }),
                                         "size-12 rounded-full"
                                     )}
                                 >
-                                    <MapPin color="green" className="size-5" />
+                                    <MapPin className="size-5 text-green-600" />
                                 </button>
                             </TooltipTrigger>
                             <TooltipContent>
@@ -67,17 +114,17 @@ const MapDock: React.FC<MapDockProps> = ({
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <button
-                                    onClick={handleEndMarkerClick}
+                                    onClick={handleEndMarkerClickWithMap}
                                     className={cn(
                                         buttonVariants({ variant: activeMarker === 'end' ? 'default' : 'ghost', size: 'icon' }),
                                         "size-12 rounded-full"
                                     )}
                                 >
-                                    <MapPin color="red" className="size-5" />
+                                    <Navigation className="size-5 text-red-600" />
                                 </button>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p>Place End Marker</p>
+                                <p>Place End Point</p>
                             </TooltipContent>
                         </Tooltip>
                     </DockIcon>
@@ -90,7 +137,7 @@ const MapDock: React.FC<MapDockProps> = ({
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <button
-                                    onClick={onZoomIn}
+                                    onClick={handleZoomIn}
                                     className={cn(
                                         buttonVariants({ variant: 'ghost', size: 'icon' }),
                                         "size-12 rounded-full"
@@ -109,7 +156,7 @@ const MapDock: React.FC<MapDockProps> = ({
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <button
-                                    onClick={onZoomOut}
+                                    onClick={handleZoomOut}
                                     className={cn(
                                         buttonVariants({ variant: 'ghost', size: 'icon' }),
                                         "size-12 rounded-full"
@@ -128,7 +175,7 @@ const MapDock: React.FC<MapDockProps> = ({
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <button
-                                    onClick={onResetView}
+                                    onClick={handleResetView}
                                     className={cn(
                                         buttonVariants({ variant: 'ghost', size: 'icon' }),
                                         "size-12 rounded-full"
@@ -147,6 +194,48 @@ const MapDock: React.FC<MapDockProps> = ({
                     <Separator orientation="vertical" className="h-8 mx-1" />
 
                     {/* Info and layers controls */}
+                    {/* Route controls */}
+                    <DockIcon>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={handleCalculateRoute}
+                                    className={cn(
+                                        buttonVariants({ variant: 'ghost', size: 'icon' }),
+                                        "size-12 rounded-full"
+                                    )}
+                                >
+                                    <Route className="size-5 text-blue-600" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Calculate Route</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </DockIcon>
+
+                    <DockIcon>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={handleClearRoute}
+                                    className={cn(
+                                        buttonVariants({ variant: 'ghost', size: 'icon' }),
+                                        "size-12 rounded-full"
+                                    )}
+                                >
+                                    <X className="size-5 text-gray-600" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Clear Route</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </DockIcon>
+
+                    {/* Separator */}
+                    <Separator orientation="vertical" className="h-8 mx-1" />
+
                     <DockIcon>
                         <Tooltip>
                             <TooltipTrigger asChild>

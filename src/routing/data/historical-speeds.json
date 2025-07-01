@@ -1,0 +1,35 @@
+{
+  "default": {
+    "normal": 25,
+    "local": 15,
+    "express": 35
+  },
+  "lines": {
+    "Venice Short Line": {
+      "averageSpeed": 22
+    },
+    "Hollywood Line": {
+      "averageSpeed": 28
+    },
+    "Santa Monica Air Line": {
+      "averageSpeed": 30
+    },
+    "Pasadena via Oak Knoll": {
+      "averageSpeed": 26
+    },
+    "San Bernardino Line": {
+      "averageSpeed": 32
+    },
+    "Long Beach Line": {
+      "averageSpeed": 28
+    },
+    "Watts Line": {
+      "averageSpeed": 24
+    },
+    "Redondo Beach via Playa del Rey": {
+      "averageSpeed": 26
+    }
+  },
+  "transferPenalty": 5,
+  "walkingSpeed": 3
+}

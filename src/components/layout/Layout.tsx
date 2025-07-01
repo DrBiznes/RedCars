@@ -14,6 +14,8 @@ declare global {
       zoomIn: () => void;
       zoomOut: () => void;
       resetView: () => void;
+      calculateRoute: () => void;
+      clearRoute: () => void;
     };
   }
 }
@@ -25,6 +27,8 @@ interface MapControls {
   zoomIn: () => void;
   zoomOut: () => void;
   resetView: () => void;
+  calculateRoute: () => void;
+  clearRoute: () => void;
 }
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
@@ -42,7 +46,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           startPlacingEnd: window.mapControls.startPlacingEnd,
           zoomIn: window.mapControls.zoomIn,
           zoomOut: window.mapControls.zoomOut,
-          resetView: window.mapControls.resetView
+          resetView: window.mapControls.resetView,
+          calculateRoute: window.mapControls.calculateRoute,
+          clearRoute: window.mapControls.clearRoute
         });
       } else {
         // Try again in a moment if not available yet

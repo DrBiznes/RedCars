@@ -1,10 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap, GeoJSON, Polyline, CircleMarker } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { Feature, FeatureCollection } from 'geojson';
-import { RouteFinder } from '@/routing/algorithms/RouteFinder';
-import { RouteResult, Station } from '@/routing/types/routing.types';
 
 // Fix for default Leaflet marker icon in React
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -25,7 +23,7 @@ const startIcon = new L.Icon({
     shadowUrl: iconShadow,
     iconSize: [25, 41],
     iconAnchor: [12, 41],
-    className: 'start-marker' // We'll add CSS to colorize this
+    className: 'start-marker'
 });
 
 const endIcon = new L.Icon({
@@ -33,7 +31,7 @@ const endIcon = new L.Icon({
     shadowUrl: iconShadow,
     iconSize: [25, 41],
     iconAnchor: [12, 41],
-    className: 'end-marker' // We'll add CSS to colorize this
+    className: 'end-marker'
 });
 
 interface MapEventHandlerProps {
@@ -69,9 +67,7 @@ const MapEventHandler = ({
     onStartPlaced,
     onEndPlaced
 }: MapEventHandlerProps) => {
-    // We need this variable for the hook, but don't use it directly
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const map = useMapEvents({
+    useMapEvents({
         click(e) {
             if (isPlacingStart) {
                 onStartPlaced([e.latlng.lat, e.latlng.lng]);
@@ -109,14 +105,6 @@ const Map = ({ selectedLines = [] }: MapProps) => {
     const [showAllLines, setShowAllLines] = useState(selectedLines.length === 0);
     const [activeLines, setActiveLines] = useState<string[]>(selectedLines);
     const [geoJsonData, setGeoJsonData] = useState<FeatureCollection | null>(null);
-    const [stationsGeoJsonData, setStationsGeoJsonData] = useState<FeatureCollection | null>(null);
-    
-    // Routing state
-    const [routeFinder] = useState(() => new RouteFinder());
-    const [isRoutingInitialized, setIsRoutingInitialized] = useState(false);
-    const [currentRoute, setCurrentRoute] = useState<RouteResult | null>(null);
-    const [showStations, setShowStations] = useState(false);
-    const [allStations, setAllStations] = useState<Station[]>([]);
 
     // Reference to the Leaflet map instance
     const mapRef = useRef<L.Map | null>(null);
@@ -125,20 +113,12 @@ const Map = ({ selectedLines = [] }: MapProps) => {
     useEffect(() => {
         const fetchGeoJsonData = async () => {
             try {
-                // Fetch lines
-                const linesResponse = await fetch('/data/GeoJSON/lines.geojson');
+                const linesResponse = await fetch('/src/data/GeoJSON/lines.geojson');
                 if (!linesResponse.ok) {
                     throw new Error(`Failed to fetch lines GeoJSON data: ${linesResponse.status}`);
                 }
                 const linesData = await linesResponse.json();
                 setGeoJsonData(linesData);
-
-                // Fetch stations
-                const stationsResponse = await fetch('/data/GeoJSON/stations.geojson');
-                if (stationsResponse.ok) {
-                    const stationsData = await stationsResponse.json();
-                    setStationsGeoJsonData(stationsData);
-                }
             } catch (err) {
                 console.error('Error loading GeoJSON data:', err);
             }
@@ -146,41 +126,6 @@ const Map = ({ selectedLines = [] }: MapProps) => {
 
         fetchGeoJsonData();
     }, []);
-
-    // Initialize routing when data is loaded
-    useEffect(() => {
-        const initializeRouting = async () => {
-            if (geoJsonData && !isRoutingInitialized) {
-                try {
-                    console.log('=== ROUTING INITIALIZATION DEBUG ===');
-                    console.log('Lines data:', geoJsonData.features.length, 'features');
-                    console.log('Stations data:', stationsGeoJsonData ? stationsGeoJsonData.features.length : 0, 'stations');
-                    
-                    await routeFinder.initialize(
-                        geoJsonData.features as any,
-                        stationsGeoJsonData as any
-                    );
-                    setIsRoutingInitialized(true);
-                    const stations = routeFinder.getAllStations();
-                    setAllStations(stations);
-                    
-                    console.log('=== ROUTING INITIALIZATION COMPLETE ===');
-                    console.log('Total stations generated:', stations.length);
-                    console.log('Station breakdown:');
-                    console.log('- Historical stations:', stations.filter(s => s.isHistorical).length);
-                    console.log('- Generated stations:', stations.filter(s => !s.isHistorical && !s.isIntersection).length);
-                    console.log('- Intersection stations:', stations.filter(s => s.isIntersection).length);
-                    if (stations.length > 0) {
-                        console.log('Sample stations:', stations.slice(0, 3));
-                    }
-                } catch (err) {
-                    console.error('Error initializing routing:', err);
-                }
-            }
-        };
-
-        initializeRouting();
-    }, [geoJsonData, stationsGeoJsonData, isRoutingInitialized, routeFinder]);
 
     // Update active lines when selectedLines prop changes
     useEffect(() => {
@@ -229,47 +174,36 @@ const Map = ({ selectedLines = [] }: MapProps) => {
     }, []);
 
     const calculateRoute = useCallback(() => {
-        if (!isRoutingInitialized || !startPosition || !endPosition) {
-            console.log('Cannot calculate route: missing data');
+        if (!startPosition || !endPosition) {
+            console.log('Cannot calculate route: missing start or end position');
             return;
         }
 
-        const route = routeFinder.findRoute(
-            { lat: startPosition[0], lng: startPosition[1] },
-            { lat: endPosition[0], lng: endPosition[1] }
-        );
-
-        if (route) {
-            setCurrentRoute(route);
-            console.log('Route found:', route);
-        } else {
-            console.log('No route found');
-        }
-    }, [isRoutingInitialized, startPosition, endPosition, routeFinder]);
+        // Simple placeholder route calculation - just log for now
+        console.log('Route calculation requested from:', startPosition, 'to:', endPosition);
+        console.log('Route calculation will be implemented once the basic map is stable');
+    }, [startPosition, endPosition]);
 
     const clearRoute = useCallback(() => {
-        setCurrentRoute(null);
         setStartPosition(null);
         setEndPosition(null);
+        console.log('Route cleared');
     }, []);
 
     const handleLineClick = useCallback((lineName: string) => {
-        // Toggle the line in the active lines array
         if (activeLines.includes(lineName)) {
             setActiveLines(activeLines.filter(name => name !== lineName));
         } else {
             setActiveLines([...activeLines, lineName]);
         }
         
-        // If we're selecting a specific line, turn off "show all lines"
         if (showAllLines) {
             setShowAllLines(false);
         }
     }, [activeLines, showAllLines]);
 
-    // GeoJSON styling - fix by defining it as a function that returns the style function
+    // GeoJSON styling
     const getStyleFunction = useCallback(() => {
-        // This function returns the actual style function that GeoJSON component will use
         return (feature?: Feature<any, any>) => {
             if (!feature || !feature.properties) {
                 return {
@@ -343,9 +277,9 @@ const Map = ({ selectedLines = [] }: MapProps) => {
                 center={defaultPosition}
                 zoom={defaultZoom}
                 style={{ height: '100%', width: '100%' }}
-                zoomControl={false} // Hide default zoom control
-                attributionControl={true} // Keep attribution but we'll style it
-                className="leaflet-container-custom" // Add custom class for styling
+                zoomControl={false}
+                attributionControl={true}
+                className="leaflet-container-custom"
             >
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -357,33 +291,6 @@ const Map = ({ selectedLines = [] }: MapProps) => {
                         data={geoJsonData} 
                         style={getStyleFunction()}
                         onEachFeature={onEachFeature}
-                    />
-                )}
-
-                {/* Render stations */}
-                {showStations && allStations.map(station => (
-                    <CircleMarker
-                        key={station.id}
-                        center={[station.position.lat, station.position.lng]}
-                        radius={station.isHistorical ? 6 : 4}
-                        fillColor={station.isHistorical ? '#FF5722' : '#2196F3'}
-                        fillOpacity={0.8}
-                        weight={1}
-                        color="#000"
-                    >
-                        {/* Popup will be added later */}
-                    </CircleMarker>
-                ))}
-
-                {/* Render route */}
-                {currentRoute && (
-                    <Polyline 
-                        positions={currentRoute.segments.map(segment => [
-                            segment.from.position.lat, segment.from.position.lng
-                        ] as [number, number])}
-                        color="#4CAF50"
-                        weight={6}
-                        opacity={0.8}
                     />
                 )}
 
@@ -416,29 +323,6 @@ const Map = ({ selectedLines = [] }: MapProps) => {
                     Click on the map to place your destination
                 </div>
             )}
-
-            {/* Debug panel */}
-            <div className="absolute top-4 right-4 z-[1000] bg-white p-3 rounded shadow text-xs space-y-2 max-w-xs">
-                <div className="font-bold">Routing Debug</div>
-                <div>Initialized: {isRoutingInitialized ? '✅' : '❌'}</div>
-                <div>Total Stations: {allStations.length}</div>
-                <div>Historical: {allStations.filter(s => s.isHistorical).length}</div>
-                <div>Generated: {allStations.filter(s => !s.isHistorical && !s.isIntersection).length}</div>
-                <div>Intersections: {allStations.filter(s => s.isIntersection).length}</div>
-                <button
-                    onClick={() => setShowStations(!showStations)}
-                    className="w-full px-2 py-1 bg-blue-100 rounded text-xs"
-                >
-                    {showStations ? 'Hide' : 'Show'} Stations
-                </button>
-                {currentRoute && (
-                    <div className="bg-green-100 p-2 rounded">
-                        <div>Route: {currentRoute.totalTime.toFixed(1)} min</div>
-                        <div>Distance: {currentRoute.totalDistance.toFixed(1)} mi</div>
-                        <div>Transfers: {currentRoute.transfers}</div>
-                    </div>
-                )}
-            </div>
         </div>
     );
 };

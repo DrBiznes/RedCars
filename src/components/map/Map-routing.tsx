@@ -126,7 +126,7 @@ const Map = ({ selectedLines = [] }: MapProps) => {
         const fetchGeoJsonData = async () => {
             try {
                 // Fetch lines
-                const linesResponse = await fetch('/data/GeoJSON/lines.geojson');
+                const linesResponse = await fetch('/src/data/GeoJSON/lines.geojson');
                 if (!linesResponse.ok) {
                     throw new Error(`Failed to fetch lines GeoJSON data: ${linesResponse.status}`);
                 }
@@ -134,7 +134,7 @@ const Map = ({ selectedLines = [] }: MapProps) => {
                 setGeoJsonData(linesData);
 
                 // Fetch stations
-                const stationsResponse = await fetch('/data/GeoJSON/stations.geojson');
+                const stationsResponse = await fetch('/src/data/GeoJSON/stations.geojson');
                 if (stationsResponse.ok) {
                     const stationsData = await stationsResponse.json();
                     setStationsGeoJsonData(stationsData);
@@ -152,27 +152,12 @@ const Map = ({ selectedLines = [] }: MapProps) => {
         const initializeRouting = async () => {
             if (geoJsonData && !isRoutingInitialized) {
                 try {
-                    console.log('=== ROUTING INITIALIZATION DEBUG ===');
-                    console.log('Lines data:', geoJsonData.features.length, 'features');
-                    console.log('Stations data:', stationsGeoJsonData ? stationsGeoJsonData.features.length : 0, 'stations');
-                    
                     await routeFinder.initialize(
                         geoJsonData.features as any,
-                        stationsGeoJsonData as any
+                        stationsGeoJsonData
                     );
                     setIsRoutingInitialized(true);
-                    const stations = routeFinder.getAllStations();
-                    setAllStations(stations);
-                    
-                    console.log('=== ROUTING INITIALIZATION COMPLETE ===');
-                    console.log('Total stations generated:', stations.length);
-                    console.log('Station breakdown:');
-                    console.log('- Historical stations:', stations.filter(s => s.isHistorical).length);
-                    console.log('- Generated stations:', stations.filter(s => !s.isHistorical && !s.isIntersection).length);
-                    console.log('- Intersection stations:', stations.filter(s => s.isIntersection).length);
-                    if (stations.length > 0) {
-                        console.log('Sample stations:', stations.slice(0, 3));
-                    }
+                    setAllStations(routeFinder.getAllStations());
                 } catch (err) {
                     console.error('Error initializing routing:', err);
                 }
@@ -371,7 +356,16 @@ const Map = ({ selectedLines = [] }: MapProps) => {
                         weight={1}
                         color="#000"
                     >
-                        {/* Popup will be added later */}
+                        <L.Popup>
+                            <div>
+                                <strong>{station.name || station.id}</strong>
+                                {station.lineNames.length > 0 && (
+                                    <p>Lines: {station.lineNames.join(', ')}</p>
+                                )}
+                                {station.isIntersection && <p><em>Transfer Station</em></p>}
+                                {station.isHistorical && <p><em>Historical Station</em></p>}
+                            </div>
+                        </L.Popup>
                     </CircleMarker>
                 ))}
 
@@ -379,8 +373,9 @@ const Map = ({ selectedLines = [] }: MapProps) => {
                 {currentRoute && (
                     <Polyline 
                         positions={currentRoute.segments.map(segment => [
-                            segment.from.position.lat, segment.from.position.lng
-                        ] as [number, number])}
+                            [segment.from.position.lat, segment.from.position.lng],
+                            [segment.to.position.lat, segment.to.position.lng]
+                        ]).flat()}
                         color="#4CAF50"
                         weight={6}
                         opacity={0.8}
@@ -417,28 +412,13 @@ const Map = ({ selectedLines = [] }: MapProps) => {
                 </div>
             )}
 
-            {/* Debug panel */}
-            <div className="absolute top-4 right-4 z-[1000] bg-white p-3 rounded shadow text-xs space-y-2 max-w-xs">
-                <div className="font-bold">Routing Debug</div>
-                <div>Initialized: {isRoutingInitialized ? '✅' : '❌'}</div>
-                <div>Total Stations: {allStations.length}</div>
-                <div>Historical: {allStations.filter(s => s.isHistorical).length}</div>
-                <div>Generated: {allStations.filter(s => !s.isHistorical && !s.isIntersection).length}</div>
-                <div>Intersections: {allStations.filter(s => s.isIntersection).length}</div>
-                <button
-                    onClick={() => setShowStations(!showStations)}
-                    className="w-full px-2 py-1 bg-blue-100 rounded text-xs"
-                >
-                    {showStations ? 'Hide' : 'Show'} Stations
-                </button>
-                {currentRoute && (
-                    <div className="bg-green-100 p-2 rounded">
-                        <div>Route: {currentRoute.totalTime.toFixed(1)} min</div>
-                        <div>Distance: {currentRoute.totalDistance.toFixed(1)} mi</div>
-                        <div>Transfers: {currentRoute.transfers}</div>
-                    </div>
-                )}
-            </div>
+            {/* Debug toggle for stations */}
+            <button
+                onClick={() => setShowStations(!showStations)}
+                className="absolute top-4 right-4 z-[1000] bg-white px-3 py-1 rounded shadow text-sm"
+            >
+                {showStations ? 'Hide' : 'Show'} Stations
+            </button>
         </div>
     );
 };
