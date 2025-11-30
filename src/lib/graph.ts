@@ -317,8 +317,8 @@ export class Graph {
             pointsOnLine.push({ position: coords[0], dist: 0 });
             pointsOnLine.push({ position: coords[coords.length - 1], dist: lineLength });
 
-            // 2. Densify: Add points every 1 mile
-            const segmentLength = 1.0; // miles
+            // 2. Densify: Add points every 0.25 miles (approx 1320 feet)
+            const segmentLength = 0.25;
             for (let d = segmentLength; d < lineLength; d += segmentLength) {
                 const point = turf.along(line, d, { units: 'miles' });
                 pointsOnLine.push({ position: point.geometry.coordinates, dist: d });
@@ -361,11 +361,11 @@ export class Graph {
 
         // 3. Create Transfer Edges based on Proximity
         // Iterate through all nodes and find pairs on DIFFERENT lines that are close
-        const TRANSFER_DISTANCE_MILES = 0.5; // Increased to 0.5 miles to ensure connectivity
+        const TRANSFER_DISTANCE_MILES = 0.25; // Tightened to 0.25 miles for better accuracy
         const nodesArray = Array.from(this.nodes.values());
         let transferEdgesCount = 0;
 
-        // This is O(N^2) which is fine for ~1000 nodes. 
+        // This is O(N^2) which is fine for ~3000 nodes. 
         // For larger graphs, use a spatial index (RBush).
         for (let i = 0; i < nodesArray.length; i++) {
             for (let j = i + 1; j < nodesArray.length; j++) {
@@ -380,7 +380,6 @@ export class Graph {
                 if (dist <= TRANSFER_DISTANCE_MILES) {
                     // Add bidirectional transfer edge
                     // Weight is transfer penalty + walking time
-                    // Walking time is important now that radius is larger (0.5 miles is ~10 mins walk)
                     const walkTime = calculateTravelTimeMinutes(dist, 3); // 3 mph walking speed
                     const totalWeight = TRANSFER_PENALTY_MINUTES + walkTime;
 
@@ -390,9 +389,9 @@ export class Graph {
                 }
             }
         }
-        console.log(`Added ${transferEdgesCount} transfer edges between lines.`);
+        console.log(`Graph built: ${this.nodes.size} nodes, ${this.edges.size} edges. Added ${transferEdgesCount} transfer edges.`);
 
-        this.analyzeConnectivity();
+        // this.analyzeConnectivity(); // Commented out to reduce noise
     }
 
     analyzeConnectivity() {
@@ -453,7 +452,7 @@ export class Graph {
     intersectionMap: Map<number, string[]> = new Map();
 
     dijkstra(startNodeId: string, endNodeId: string): RouteResult | null {
-        console.log(`Dijkstra starting: ${startNodeId} -> ${endNodeId}`);
+        // console.log(`Dijkstra starting: ${startNodeId} -> ${endNodeId}`);
         const distances = new Map<string, number>();
         const previous = new Map<string, { edge: Edge, fromNode: string }>();
         const pq = new Set<string>();
@@ -465,15 +464,11 @@ export class Graph {
 
         distances.set(startNodeId, 0);
 
-        let visitedCount = 0;
-
         while (pq.size > 0) {
             // Find min distance node
             let minNode: string | null = null;
             let minDist = Infinity;
 
-            // Optimization: If we have many nodes, this linear scan is slow. 
-            // But for debugging, let's keep it and log if it's weird.
             for (const nodeId of pq) {
                 const d = distances.get(nodeId) ?? Infinity;
                 if (d < minDist) {
@@ -482,18 +477,10 @@ export class Graph {
                 }
             }
 
-            if (minNode === null || minDist === Infinity) {
-                console.log(`Dijkstra stopped: No reachable nodes left in PQ. Visited ${visitedCount} nodes.`);
-                break;
-            }
-
-            if (minNode === endNodeId) {
-                console.log(`Dijkstra found target! Distance: ${minDist}`);
-                break;
-            }
+            if (minNode === null || minDist === Infinity) break;
+            if (minNode === endNodeId) break;
 
             pq.delete(minNode);
-            visitedCount++;
 
             const neighbors = this.edges.get(minNode) || [];
             for (const edge of neighbors) {
@@ -508,8 +495,7 @@ export class Graph {
         }
 
         if (distances.get(endNodeId) === Infinity) {
-            console.warn(`Dijkstra failed: End node ${endNodeId} is unreachable from ${startNodeId}. Graph might be disconnected.`);
-            console.warn(`Start Node Neighbors:`, this.edges.get(startNodeId));
+            console.warn(`Dijkstra failed: End node ${endNodeId} is unreachable from ${startNodeId}.`);
             return null;
         }
 
