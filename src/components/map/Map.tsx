@@ -1,8 +1,10 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap, GeoJSON } from 'react-leaflet';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { MapContainer, TileLayer, Marker, Polyline, useMapEvents, useMap, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { Feature, FeatureCollection, GeoJsonProperties } from 'geojson';
+import { Feature, FeatureCollection, LineString, Point } from 'geojson';
+import { Graph, RouteResult } from '@/lib/graph';
+import { calculateDistanceMiles, calculateTravelTimeMinutes, WALKING_SPEED_MPH } from '@/lib/geoUtils';
 
 // Fix for default Leaflet marker icon in React
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -42,7 +44,7 @@ interface MapEventHandlerProps {
 }
 
 interface MapProps {
-    selectedLines?: string[];
+    // No props needed for now
 }
 
 // Global window interface update for map controls
@@ -93,7 +95,7 @@ const MapController = ({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null
     return null;
 };
 
-const Map = ({ selectedLines = [] }: MapProps) => {
+const Map = ({ }: MapProps) => {
     // Los Angeles coordinates
     const defaultPosition: [number, number] = [34.0522, -118.2437];
     const defaultZoom = 10;
@@ -102,36 +104,111 @@ const Map = ({ selectedLines = [] }: MapProps) => {
     const [endPosition, setEndPosition] = useState<[number, number] | null>(null);
     const [isPlacingStart, setIsPlacingStart] = useState(false);
     const [isPlacingEnd, setIsPlacingEnd] = useState(false);
-    const [showAllLines, setShowAllLines] = useState(selectedLines.length === 0);
-    const [activeLines, setActiveLines] = useState<string[]>(selectedLines);
-    const [geoJsonData, setGeoJsonData] = useState<FeatureCollection | null>(null);
+    const [geoJsonData, setGeoJsonData] = useState<FeatureCollection<LineString> | null>(null);
+    const [stationsData, setStationsData] = useState<FeatureCollection<Point> | null>(null);
+    const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
+
+    // Graph instance
+    const graph = useMemo(() => new Graph(), []);
 
     // Reference to the Leaflet map instance
     const mapRef = useRef<L.Map | null>(null);
 
     // Fetch GeoJSON data
     useEffect(() => {
-        const fetchGeoJsonData = async () => {
+        const fetchData = async () => {
             try {
-                const response = await fetch('/src/data/GeoJSON/lines.geojson');
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch GeoJSON data: ${response.status}`);
+                const [linesRes, stationsRes] = await Promise.all([
+                    fetch('/src/data/GeoJSON/lines.geojson'),
+                    fetch('/src/data/GeoJSON/stations.geojson')
+                ]);
+
+                if (!linesRes.ok || !stationsRes.ok) {
+                    throw new Error('Failed to fetch GeoJSON data');
                 }
-                const data = await response.json();
-                setGeoJsonData(data);
+
+                const linesData = await linesRes.json();
+                const stationsData = await stationsRes.json();
+
+                setGeoJsonData(linesData);
+                setStationsData(stationsData);
+
+                // Build graph
+                console.log('Building graph...');
+                graph.buildGraphWithTransfers(linesData);
+                console.log('Graph built:', graph.nodes.size, 'nodes', graph.edges.size, 'edges');
+
             } catch (err) {
                 console.error('Error loading GeoJSON data:', err);
             }
         };
 
-        fetchGeoJsonData();
-    }, []);
+        fetchData();
+    }, [graph]);
 
-    // Update active lines when selectedLines prop changes
+    // Calculate route when start/end change
     useEffect(() => {
-        setActiveLines(selectedLines);
-        setShowAllLines(selectedLines.length === 0);
-    }, [selectedLines]);
+        if (startPosition && endPosition && geoJsonData) {
+            console.log('Calculating route...');
+
+            // 1. Find nearest points on lines for start/end
+            // We need to iterate all lines to find the absolute closest point
+            const startNodeId = graph.findNearestNode([startPosition[1], startPosition[0]]);
+            const endNodeId = graph.findNearestNode([endPosition[1], endPosition[0]]);
+
+
+            if (startNodeId && endNodeId) {
+                const railRoute = graph.dijkstra(startNodeId, endNodeId);
+
+                if (railRoute) {
+                    // Calculate walking segments
+                    const startNode = graph.nodes.get(startNodeId)!;
+                    const endNode = graph.nodes.get(endNodeId)!;
+
+                    const startWalkDist = calculateDistanceMiles(startPosition, [startNode.position[1], startNode.position[0]]);
+                    const endWalkDist = calculateDistanceMiles([endNode.position[1], endNode.position[0]], endPosition);
+
+                    const startWalkTime = calculateTravelTimeMinutes(startWalkDist, WALKING_SPEED_MPH);
+                    const endWalkTime = calculateTravelTimeMinutes(endWalkDist, WALKING_SPEED_MPH);
+
+                    // Construct full result
+                    const fullResult: RouteResult = {
+                        path: [
+                            [startPosition[1], startPosition[0]], // Start Marker
+                            ...railRoute.path,
+                            [endPosition[1], endPosition[0]] // End Marker
+                        ],
+                        totalTime: startWalkTime + railRoute.totalTime + endWalkTime,
+                        segments: [
+                            {
+                                from: [startPosition[1], startPosition[0]],
+                                to: startNode.position,
+                                time: startWalkTime,
+                                distance: startWalkDist,
+                                instructions: `Walk to ${startNode.lineId || 'Station'}`
+                            },
+                            ...railRoute.segments,
+                            {
+                                from: endNode.position,
+                                to: [endPosition[1], endPosition[0]],
+                                time: endWalkTime,
+                                distance: endWalkDist,
+                                instructions: `Walk to Destination`
+                            }
+                        ]
+                    };
+
+                    setRouteResult(fullResult);
+                    console.log('Route calculated:', fullResult);
+                    window.dispatchEvent(new CustomEvent('route-calculated', { detail: fullResult }));
+                }
+            }
+        } else {
+            setRouteResult(null);
+            window.dispatchEvent(new CustomEvent('route-calculated', { detail: null }));
+        }
+    }, [startPosition, endPosition, geoJsonData, graph]);
+
 
     // These functions will be exposed to parent components
     const startPlacingStart = useCallback(() => {
@@ -173,20 +250,6 @@ const Map = ({ selectedLines = [] }: MapProps) => {
         }
     }, []);
 
-    const handleLineClick = useCallback((lineName: string) => {
-        // Toggle the line in the active lines array
-        if (activeLines.includes(lineName)) {
-            setActiveLines(activeLines.filter(name => name !== lineName));
-        } else {
-            setActiveLines([...activeLines, lineName]);
-        }
-        
-        // If we're selecting a specific line, turn off "show all lines"
-        if (showAllLines) {
-            setShowAllLines(false);
-        }
-    }, [activeLines, showAllLines]);
-
     // GeoJSON styling - fix by defining it as a function that returns the style function
     const getStyleFunction = useCallback(() => {
         // This function returns the actual style function that GeoJSON component will use
@@ -198,32 +261,26 @@ const Map = ({ selectedLines = [] }: MapProps) => {
                     opacity: 0
                 };
             }
-            
-            const lineName = feature.properties.Name as string | undefined;
-            
-            const isActive = 
-                showAllLines || 
-                (lineName && activeLines.includes(lineName));
-            
-            const isLocalLine = feature.properties.description && 
-                typeof feature.properties.description === 'string' && 
+
+            const isLocalLine = feature.properties.description &&
+                typeof feature.properties.description === 'string' &&
                 feature.properties.description.includes('Local');
-            
+
             return {
                 color: 'var(--red-car-line)',
-                weight: isActive ? 4 : 0,
-                opacity: isActive ? 0.8 : 0,
+                weight: 4,
+                opacity: 0.8,
                 dashArray: isLocalLine ? '5, 5' : undefined
             };
         };
-    }, [showAllLines, activeLines]);
+    }, []);
 
     // GeoJSON popup and events
     const onEachFeature = useCallback((feature: Feature, layer: L.Layer) => {
         if (feature.properties) {
             const lineName = feature.properties.Name as string | undefined;
             const description = feature.properties.description as string | undefined;
-            
+
             if (lineName) {
                 const popupContent = `
                     <div>
@@ -232,13 +289,9 @@ const Map = ({ selectedLines = [] }: MapProps) => {
                     </div>
                 `;
                 layer.bindPopup(popupContent);
-                
-                layer.on('click', () => {
-                    handleLineClick(lineName);
-                });
             }
         }
-    }, [handleLineClick]);
+    }, []);
 
     // Expose methods to parent via window object
     useEffect(() => {
@@ -272,8 +325,8 @@ const Map = ({ selectedLines = [] }: MapProps) => {
                 />
 
                 {geoJsonData && (
-                    <GeoJSON 
-                        data={geoJsonData} 
+                    <GeoJSON
+                        data={geoJsonData}
                         style={getStyleFunction()}
                         onEachFeature={onEachFeature}
                     />
@@ -294,6 +347,13 @@ const Map = ({ selectedLines = [] }: MapProps) => {
 
                 {endPosition && (
                     <Marker position={endPosition} icon={endIcon} />
+                )}
+
+                {routeResult && (
+                    <Polyline
+                        positions={routeResult.path.map(p => [p[1], p[0]])}
+                        pathOptions={{ color: 'blue', weight: 6, opacity: 0.7 }}
+                    />
                 )}
             </MapContainer>
 

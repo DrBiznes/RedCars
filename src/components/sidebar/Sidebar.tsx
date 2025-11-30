@@ -1,41 +1,54 @@
-import React, { useState } from 'react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import PELineSelector from '@/components/map/PELineSelector';
+import { RouteResult } from '@/lib/graph';
+import { X } from 'lucide-react';
 
 interface SidebarProps {
     onClose?: () => void;
-    defaultTab?: string;
     isOpen: boolean;
+    // Props below are kept for compatibility but might be unused in this simplified version
+    defaultTab?: string;
     onLinesChange?: (lines: string[]) => void;
     selectedLines?: string[];
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ 
-    onClose, 
-    defaultTab = 'results', 
-    isOpen,
-    onLinesChange = () => {},
-    selectedLines = []
+const Sidebar: React.FC<SidebarProps> = ({
+    onClose,
+    isOpen
 }) => {
-    const [activeTab, setActiveTab] = useState(defaultTab);
+    const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
 
-    const handleLinesChange = (lines: string[]) => {
-        onLinesChange(lines);
+    useEffect(() => {
+        const handleRouteCalculated = (event: CustomEvent<RouteResult | null>) => {
+            setRouteResult(event.detail);
+        };
+
+        window.addEventListener('route-calculated', handleRouteCalculated as EventListener);
+
+        return () => {
+            window.removeEventListener('route-calculated', handleRouteCalculated as EventListener);
+        };
+    }, []);
+
+    const handleGoogleMapsClick = () => {
+        if (!routeResult || routeResult.path.length === 0) return;
+        const start = routeResult.path[0];
+        const end = routeResult.path[routeResult.path.length - 1];
+        const url = `https://www.google.com/maps/dir/?api=1&origin=${start[1]},${start[0]}&destination=${end[1]},${end[0]}&travelmode=driving`;
+        window.open(url, '_blank');
     };
 
     return (
         <aside
             className={cn(
-                "fixed top-[60px] left-0 bottom-[40px] w-80 bg-background/95 backdrop-blur-sm text-foreground border-r border-border h-[calc(100vh-100px)] flex flex-col z-10 shadow-lg",
+                "fixed top-[60px] left-0 bottom-[40px] w-96 bg-background/95 backdrop-blur-sm text-foreground border-r border-border h-[calc(100vh-100px)] flex flex-col z-10 shadow-lg",
                 "transition-transform duration-300 ease-in-out",
                 isOpen ? "translate-x-0" : "-translate-x-full"
             )}
         >
-            <div className="p-4 border-b border-border flex justify-between items-center">
-                <h2 className="font-semibold text-lg">Pacific Electric Red Car</h2>
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/50">
+                <h2 className="font-semibold text-lg">Route Debugger</h2>
                 {onClose && (
                     <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
                         <X className="h-4 w-4" />
@@ -43,110 +56,77 @@ const Sidebar: React.FC<SidebarProps> = ({
                 )}
             </div>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-                <div className="px-4 pt-2">
-                    <TabsList className="w-full">
-                        <TabsTrigger value="results" className="flex-1">Results</TabsTrigger>
-                        <TabsTrigger value="info" className="flex-1">History</TabsTrigger>
-                        <TabsTrigger value="layers" className="flex-1">Layers</TabsTrigger>
-                    </TabsList>
-                </div>
-
-                <div className="p-4 flex-1 overflow-auto">
-                    <TabsContent value="results" className="h-full mt-0">
-                        {/* Results tab content */}
-                        <div className="flex flex-col gap-4">
-                            <div className="p-4 border border-border rounded-md bg-accent/10">
-                                <h3 className="font-medium mb-2">Route Information</h3>
-                                <div className="space-y-2 text-sm">
-                                    <p>Set your start and end points on the map to see route comparison.</p>
+            <div className="p-4 flex-1 overflow-auto">
+                {!routeResult ? (
+                    <div className="text-sm text-muted-foreground text-center mt-10">
+                        <p>Select a Start and End point on the map to calculate a route.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-6">
+                        {/* Summary Card */}
+                        <div className="p-4 rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-800">
+                            <h3 className="text-red-800 dark:text-red-400 font-bold text-lg mb-2">Red Car Trip</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <p className="text-xs text-red-600 dark:text-red-300 uppercase font-semibold">Total Time</p>
+                                    <p className="text-2xl font-bold text-red-900 dark:text-red-100">
+                                        {Math.round(routeResult.totalTime)} <span className="text-sm font-normal">min</span>
+                                    </p>
                                 </div>
-                            </div>
-
-                            <div className="p-4 border border-border rounded-md">
-                                <h3 className="font-medium mb-2">Red Car Route</h3>
-                                <div className="flex justify-between mb-2">
-                                    <span className="text-sm">Travel Time:</span>
-                                    <span className="text-sm font-medium">--</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-sm">Distance:</span>
-                                    <span className="text-sm font-medium">--</span>
-                                </div>
-                            </div>
-
-                            <div className="p-4 border border-border rounded-md">
-                                <h3 className="font-medium mb-2">Modern Transit</h3>
-                                <div className="flex justify-between mb-2">
-                                    <span className="text-sm">Travel Time:</span>
-                                    <span className="text-sm font-medium">--</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-sm">Distance:</span>
-                                    <span className="text-sm font-medium">--</span>
+                                <div>
+                                    <p className="text-xs text-red-600 dark:text-red-300 uppercase font-semibold">Distance</p>
+                                    <p className="text-2xl font-bold text-red-900 dark:text-red-100">
+                                        {routeResult.segments.reduce((acc, seg) => acc + seg.distance, 0).toFixed(1)} <span className="text-sm font-normal">mi</span>
+                                    </p>
                                 </div>
                             </div>
                         </div>
-                    </TabsContent>
 
-                    <TabsContent value="info" className="h-full mt-0">
-                        {/* Info tab content */}
-                        <div className="space-y-4">
-                            <div className="p-4 border border-border rounded-md bg-accent/10">
-                                <h3 className="font-medium mb-2">About the Red Car</h3>
-                                <p className="text-sm">
-                                    The Pacific Electric Railway Company, nicknamed the Red Cars, was a privately owned mass transit system in Southern California consisting of electrically powered streetcars, interurban cars, and buses. It operated from 1901 to 1961.
-                                </p>
-                            </div>
+                        {/* Segments List */}
+                        <div>
+                            <h4 className="font-semibold mb-3 text-sm uppercase tracking-wider text-muted-foreground">Itinerary</h4>
+                            <div className="space-y-0 relative border-l-2 border-muted ml-3 pl-6 pb-2">
+                                {routeResult.segments.map((seg, idx) => (
+                                    <div key={idx} className="relative mb-6 last:mb-0">
+                                        {/* Timeline Dot */}
+                                        <div className={cn(
+                                            "absolute -left-[31px] top-1 w-4 h-4 rounded-full border-2 border-background",
+                                            seg.instructions.includes("Walk") ? "bg-gray-400" : "bg-red-500"
+                                        )} />
 
-                            <div className="p-4 border border-border rounded-md">
-                                <h3 className="font-medium mb-2">Historical Impact</h3>
-                                <p className="text-sm">
-                                    At its height, the Red Car system operated over 1,100 miles of track across Los Angeles and surrounding areas, connecting cities from Newport Beach to San Fernando.
-                                </p>
-                            </div>
-
-                            <div className="p-4 border border-border rounded-md">
-                                <h3 className="font-medium mb-2">The Decline</h3>
-                                <p className="text-sm">
-                                    The system began to decline after World War II as automobiles became more popular and affordable, with the last Red Car line closing in 1961.
-                                </p>
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="font-medium text-sm">{seg.instructions}</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {seg.distance.toFixed(2)} miles
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="inline-flex items-center justify-center px-2 py-1 rounded-full bg-muted text-xs font-medium">
+                                                    {Math.round(seg.time)} min
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                    </TabsContent>
 
-                    <TabsContent value="layers" className="h-full mt-0">
-                        {/* Layers tab content */}
-                        <div className="space-y-4">
-                            <div className="p-4 border border-border rounded-md">
-                                <h3 className="font-medium mb-2">Red Car Lines</h3>
-                                <PELineSelector 
-                                    onLinesChange={handleLinesChange}
-                                    selectedLines={selectedLines}
-                                />
-                            </div>
-
-                            <div className="p-4 border border-border rounded-md">
-                                <h3 className="font-medium mb-2">Base Map Style</h3>
-                                <div className="space-y-2">
-                                    <div className="flex items-center">
-                                        <input type="radio" name="basemap" id="standard" className="mr-2" defaultChecked />
-                                        <label htmlFor="standard" className="text-sm">Standard</label>
-                                    </div>
-                                    <div className="flex items-center">
-                                        <input type="radio" name="basemap" id="satellite" className="mr-2" />
-                                        <label htmlFor="satellite" className="text-sm">Satellite</label>
-                                    </div>
-                                    <div className="flex items-center">
-                                        <input type="radio" name="basemap" id="historic" className="mr-2" />
-                                        <label htmlFor="historic" className="text-sm">Historic Style</label>
-                                    </div>
-                                </div>
-                            </div>
+                        {/* Comparison */}
+                        <div className="pt-4 border-t border-border">
+                            <h4 className="font-semibold mb-2 text-sm">Modern Comparison</h4>
+                            <Button
+                                variant="outline"
+                                className="w-full justify-between"
+                                onClick={handleGoogleMapsClick}
+                            >
+                                <span>Check Google Maps</span>
+                                <span className="text-xs text-muted-foreground">Opens in new tab</span>
+                            </Button>
                         </div>
-                    </TabsContent>
-                </div>
-            </Tabs>
+                    </div>
+                )}
+            </div>
         </aside>
     );
 };
