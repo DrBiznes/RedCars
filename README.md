@@ -52,27 +52,33 @@ This web application will allow users to compare historical Pacific Electric Red
 - Digitized historical timetables showing travel times between stops
 - Walking time estimates for reaching stops
 
-### Algorithm Outline
-1. **User Input Processing**
-   - Capture start and end points from user map pins or location search and geolocation api
-   - Find nearest Red Car stops to these points
-   - Calculate walking time to/from these stops
+### Routing Algorithm
+The application uses a custom implementation of **Dijkstra's Algorithm** to find the optimal route.
 
-2. **Route Finding**
-   - Determine possible Red Car routes between the selected stops
-   - Handle transfers between different lines if necessary
-   - Select optimal route based on total travel time
+1.  **Graph Construction**:
+    *   The rail network is built from GeoJSON data (`lines.geojson`).
+    *   **Densification**: Lines are split into segments of **0.25 miles** to create a dense network of nodes.
+    *   **Transfers**: Connections are created between different lines where they come within **0.25 miles** of each other. A transfer penalty (5 minutes) is applied.
 
-3. **Travel Time Calculation**
-   - Use digitized timetable data to calculate rail travel time
-   - Add walking time to/from stops
-   - Add transfer waiting time where applicable
-   - Calculate total journey time
+2.  **Route Calculation**:
+    *   **Start/End Snapping**: When a user places a marker, it "snaps" to the nearest node on the graph.
+    *   **Walking Segments**: The time to walk from the user's click to the snapped node (and from the final node to the destination) is calculated at **3 mph** and added to the total journey time.
+    *   **Pathfinding**: Dijkstra's algorithm searches the graph for the path with the lowest total weight (travel time + transfer penalties).
 
-4. **Result Presentation**
-   - Display route on map with color-coded segments
-   - Show breakdown of travel time components
-   - Generate Google Maps URL for comparison
+3.  **Result**:
+    *   The output includes a detailed itinerary with walking, riding, and transfer segments.
+    *   Total time and distance are displayed.
+
+### How to Use
+1.  **Explore the Map**: Pan and zoom to explore the historical Pacific Electric Red Car network.
+2.  **Place Markers**:
+    *   Click the **"Place Start"** button in the bottom dock, then click anywhere on the map.
+    *   Click the **"Place End"** button, then click your destination.
+3.  **View Route**: The application will automatically calculate the best route.
+    *   The **Sidebar** will show a step-by-step itinerary.
+    *   The map will display the route path.
+    *   If no route is found (e.g., points are too far from any line), an error will appear in the console (UI error handling coming soon).
+4.  **Compare**: Click "Open in Google Maps" to see how long the same trip would take today using modern transit or driving.
 
 ### Data Acquisition & Processing
 1. **Source Identification**
