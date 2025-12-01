@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { MapPin } from 'lucide-react';
 import MapGL, { Source, Layer, Marker, MapRef } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { FeatureCollection, LineString } from 'geojson';
@@ -341,13 +342,13 @@ const Map = ({ }: MapProps) => {
                 {/* Markers */}
                 {startPosition && (
                     <Marker longitude={startPosition[1]} latitude={startPosition[0]} anchor="bottom">
-                        <div className="text-4xl">📍</div>
+                        <MapPin className="h-10 w-10 text-green-600 fill-green-600/20 drop-shadow-lg" />
                     </Marker>
                 )}
 
                 {endPosition && (
                     <Marker longitude={endPosition[1]} latitude={endPosition[0]} anchor="bottom">
-                        <div className="text-4xl">🏁</div>
+                        <MapPin className="h-10 w-10 text-red-600 fill-red-600/20 drop-shadow-lg" />
                     </Marker>
                 )}
 

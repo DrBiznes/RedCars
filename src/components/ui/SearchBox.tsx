@@ -24,6 +24,8 @@ const SearchBox: React.FC<SearchBoxProps> = ({ onLocationSelect, placeholder = "
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = useRef<HTMLDivElement>(null);
 
+    const isSelectingRef = useRef(false);
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
@@ -36,6 +38,11 @@ const SearchBox: React.FC<SearchBoxProps> = ({ onLocationSelect, placeholder = "
 
     useEffect(() => {
         const delayDebounceFn = setTimeout(async () => {
+            if (isSelectingRef.current) {
+                isSelectingRef.current = false;
+                return;
+            }
+
             if (query.length < 3) {
                 setResults([]);
                 return;
@@ -62,6 +69,7 @@ const SearchBox: React.FC<SearchBoxProps> = ({ onLocationSelect, placeholder = "
     }, [query]);
 
     const handleSelect = (result: SearchResult) => {
+        isSelectingRef.current = true;
         setQuery(result.display_name.split(',')[0]); // Keep it short
         setIsOpen(false);
         onLocationSelect(parseFloat(result.lat), parseFloat(result.lon), result.display_name);
