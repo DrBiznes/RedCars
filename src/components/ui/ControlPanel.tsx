@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { RouteResult } from '@/lib/graph';
-import { MapPin, Navigation } from 'lucide-react';
+import { RouteResult, consolidateSegments } from '@/lib/graph';
+import { MapPin } from 'lucide-react';
 import SearchBox from './SearchBox';
+import TramIcon from './TramIcon';
 import { Separator } from '@/components/ui/separator';
 
 interface ControlPanelProps {
@@ -98,9 +99,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                     {/* Route Results */}
                     {!routeResult ? (
-                        <div className="text-center py-8 text-muted-foreground/50">
-                            <Navigation className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                            <p className="text-sm font-medium">Select points to calculate route</p>
+                        <div className="text-center py-8 text-muted-foreground/50 px-6">
+                            <TramIcon
+                                className="h-32 w-32 mx-auto mb-3 opacity-20 text-red-car-red"
+                            />
+                            <p className="text-sm font-medium leading-relaxed">
+                                Select or search for a start and end point on the map to calculate historical Red Car travel times and compare them with modern transit.
+                            </p>
                         </div>
                     ) : (
                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -110,7 +115,15 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                     <div>
                                         <p className="text-xs font-bold text-red-car-red uppercase tracking-wider mb-1">Total Travel Time</p>
                                         <p className="text-4xl font-['Josefin_Sans'] font-bold text-foreground">
-                                            {Math.round(routeResult.totalTime)}<span className="text-lg ml-1 text-muted-foreground">min</span>
+                                            {(() => {
+                                                const totalMin = Math.round(routeResult.totalTime);
+                                                if (totalMin < 60) {
+                                                    return <>{totalMin}<span className="text-lg ml-1 text-muted-foreground">min</span></>;
+                                                }
+                                                const hrs = Math.floor(totalMin / 60);
+                                                const mins = totalMin % 60;
+                                                return <>{hrs}<span className="text-lg ml-1 text-muted-foreground">hr</span> {mins}<span className="text-lg ml-1 text-muted-foreground">min</span></>;
+                                            })()}
                                         </p>
                                     </div>
                                     <div className="text-right">
@@ -133,7 +146,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             <div className="space-y-4">
                                 <h3 className="font-['Josefin_Sans'] font-bold text-lg border-b border-border/50 pb-2">Itinerary</h3>
                                 <div className="relative pl-6 space-y-6 before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-[2px] before:bg-border/50">
-                                    {routeResult.segments.map((seg, idx) => (
+                                    {consolidateSegments(routeResult.segments).map((seg, idx) => (
                                         <div key={idx} className="relative group">
                                             <div className={cn(
                                                 "absolute -left-[21px] top-1 w-3 h-3 rounded-full border-2 border-background shadow-sm transition-colors",
@@ -142,7 +155,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                             <div className="flex justify-between items-start">
                                                 <div className="space-y-1">
                                                     <p className="font-medium text-sm leading-tight">{seg.instructions}</p>
-                                                    <p className="text-xs text-muted-foreground">{seg.distance.toFixed(2)} miles</p>
+                                                    {seg.distance > 0.01 && (
+                                                        <p className="text-xs text-muted-foreground">{seg.distance.toFixed(2)} miles</p>
+                                                    )}
                                                 </div>
                                                 <span className="text-xs font-bold bg-muted px-2 py-1 rounded-md tabular-nums">
                                                     {Math.round(seg.time)} min

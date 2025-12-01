@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Loader2, MapPin } from 'lucide-react';
+import { Loader2, MapPin } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 import { cn } from '@/lib/utils';
@@ -70,7 +70,6 @@ const SearchBox: React.FC<SearchBoxProps> = ({ onLocationSelect, placeholder = "
     return (
         <div ref={wrapperRef} className={cn("relative w-full", className)}>
             <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                     type="text"
                     placeholder={placeholder}
@@ -79,6 +78,9 @@ const SearchBox: React.FC<SearchBoxProps> = ({ onLocationSelect, placeholder = "
                     onFocus={() => query.length >= 3 && setIsOpen(true)}
                     className="pl-9 pr-4 py-6 rounded-xl border-border/50 bg-background/50 backdrop-blur-sm focus:bg-background transition-all font-['Josefin_Sans'] text-lg shadow-sm"
                 />
+                <svg className="absolute left-3 top-[48%] transform -translate-y-1/2 h-6 w-6 text-foreground opacity-50 pointer-events-none scale-x-[-1]" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+                </svg>
                 {isLoading && (
                     <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />

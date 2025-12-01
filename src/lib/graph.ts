@@ -316,3 +316,41 @@ export class Graph {
         };
     }
 }
+
+/**
+ * Helper to consolidate adjacent segments that belong to the same line.
+ */
+export function consolidateSegments(segments: RouteResult['segments']): RouteResult['segments'] {
+    if (segments.length === 0) return [];
+
+    const consolidated: RouteResult['segments'] = [];
+    let current = { ...segments[0] };
+
+    for (let i = 1; i < segments.length; i++) {
+        const next = segments[i];
+
+        // Check if we can merge
+        // We merge if:
+        // 1. Both have the same lineId (and it's defined)
+        // 2. OR both are transfers (lineId undefined)
+        // AND instructions are similar enough (usually "Travel on X" or "Transfer")
+
+        const sameLine = current.lineId === next.lineId;
+        const bothTransfer = !current.lineId && !next.lineId;
+
+        if (sameLine || bothTransfer) {
+            // Merge
+            current.time += next.time;
+            current.distance += next.distance;
+            current.to = next.to; // Update end position
+            // instructions stay as the first one's usually, or we could generalize
+        } else {
+            // Push current and start new
+            consolidated.push(current);
+            current = { ...next };
+        }
+    }
+    consolidated.push(current);
+
+    return consolidated;
+}
