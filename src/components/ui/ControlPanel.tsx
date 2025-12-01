@@ -43,7 +43,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         if (!routeResult || routeResult.path.length === 0) return;
         const start = routeResult.path[0];
         const end = routeResult.path[routeResult.path.length - 1];
-        const url = `https://www.google.com/maps/dir/?api=1&origin=${start[1]},${start[0]}&destination=${end[1]},${end[0]}&travelmode=driving`;
+        const url = `https://www.google.com/maps/dir/?api=1&origin=${start[1]},${start[0]}&destination=${end[1]},${end[0]}&travelmode=transit`;
         window.open(url, '_blank');
     };
 
