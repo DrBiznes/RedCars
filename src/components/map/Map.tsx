@@ -1,47 +1,14 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, useMapEvents, useMap, GeoJSON } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
-import { Feature, FeatureCollection, LineString, Point } from 'geojson';
+import MapGL, { Source, Layer, Marker, MapRef } from 'react-map-gl/mapbox';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import { FeatureCollection, LineString } from 'geojson';
 import { Graph, RouteResult } from '@/lib/graph';
 import { calculateDistanceMiles, calculateTravelTimeMinutes, WALKING_SPEED_MPH } from '@/lib/geoUtils';
+import type { MapMouseEvent, ViewStateChangeEvent } from 'react-map-gl/mapbox';
 
-// Fix for default Leaflet marker icon in React
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
-});
-
-L.Marker.prototype.options.icon = DefaultIcon;
-
-// Custom marker icons
-const startIcon = new L.Icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    className: 'start-marker' // We'll add CSS to colorize this
-});
-
-const endIcon = new L.Icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    className: 'end-marker' // We'll add CSS to colorize this
-});
-
-interface MapEventHandlerProps {
-    isPlacingStart: boolean;
-    isPlacingEnd: boolean;
-    onStartPlaced: (position: [number, number]) => void;
-    onEndPlaced: (position: [number, number]) => void;
-}
+// Mapbox token from environment variables
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+const MAPBOX_STYLE = import.meta.env.VITE_MAPBOX_STYLE_URL;
 
 interface MapProps {
     // No props needed for now
@@ -63,59 +30,28 @@ declare global {
     }
 }
 
-// MapEventHandler component to handle click events
-const MapEventHandler = ({
-    isPlacingStart,
-    isPlacingEnd,
-    onStartPlaced,
-    onEndPlaced
-}: MapEventHandlerProps) => {
-    // We need this variable for the hook, but don't use it directly
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const map = useMapEvents({
-        click(e) {
-            if (isPlacingStart) {
-                onStartPlaced([e.latlng.lat, e.latlng.lng]);
-            } else if (isPlacingEnd) {
-                onEndPlaced([e.latlng.lat, e.latlng.lng]);
-            }
-        }
-    });
-
-    return null;
-};
-
-// Controller for zoom and reset
-const MapController = ({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null> }) => {
-    const map = useMap();
-
-    useEffect(() => {
-        if (mapRef) {
-            mapRef.current = map;
-        }
-    }, [map, mapRef]);
-
-    return null;
-};
-
 const Map = ({ }: MapProps) => {
     // Los Angeles coordinates
-    const defaultPosition: [number, number] = [34.0522, -118.2437];
-    const defaultZoom = 10;
+    const defaultPosition = {
+        latitude: 33.942,
+        longitude: -118.158,
+        zoom: 8.84
+    };
 
+    const [viewState, setViewState] = useState(defaultPosition);
     const [startPosition, setStartPosition] = useState<[number, number] | null>(null);
     const [endPosition, setEndPosition] = useState<[number, number] | null>(null);
     const [isPlacingStart, setIsPlacingStart] = useState(false);
     const [isPlacingEnd, setIsPlacingEnd] = useState(false);
     const [geoJsonData, setGeoJsonData] = useState<FeatureCollection<LineString> | null>(null);
-    const [stationsData, setStationsData] = useState<FeatureCollection<Point> | null>(null);
+    // const [stationsData, setStationsData] = useState<FeatureCollection<Point> | null>(null);
     const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
 
     // Graph instance
     const graph = useMemo(() => new Graph(), []);
 
-    // Reference to the Leaflet map instance
-    const mapRef = useRef<L.Map | null>(null);
+    // Reference to the Mapbox map instance
+    const mapRef = useRef<MapRef | null>(null);
 
     // Fetch GeoJSON data
     useEffect(() => {
@@ -131,10 +67,10 @@ const Map = ({ }: MapProps) => {
                 }
 
                 const linesData = await linesRes.json();
-                const stationsData = await stationsRes.json();
+                // const stationsData = await stationsRes.json(); // Not used, but fetched for completeness if needed later
 
                 setGeoJsonData(linesData);
-                setStationsData(stationsData);
+                // setStationsData(stationsData); // Not used
 
                 // Build graph
                 console.log('Building graph...');
@@ -148,6 +84,11 @@ const Map = ({ }: MapProps) => {
 
         fetchData();
     }, [graph]);
+
+    // Track if the update came from a search or manual interaction
+    const shouldFitBoundsRef = useRef(false);
+    // Track if we previously had a complete route
+    const wasRouteCompleteRef = useRef(false);
 
     // Calculate route when start/end change
     useEffect(() => {
@@ -224,15 +165,17 @@ const Map = ({ }: MapProps) => {
         setIsPlacingStart(false);
     }, []);
 
-    const handleStartPlaced = useCallback((position: [number, number]) => {
-        setStartPosition(position);
-        setIsPlacingStart(false);
-    }, []);
-
-    const handleEndPlaced = useCallback((position: [number, number]) => {
-        setEndPosition(position);
-        setIsPlacingEnd(false);
-    }, []);
+    const handleMapClick = useCallback((event: MapMouseEvent) => {
+        const { lng, lat } = event.lngLat;
+        shouldFitBoundsRef.current = false; // Manual placement -> don't force fit bounds unless it's new route
+        if (isPlacingStart) {
+            setStartPosition([lat, lng]);
+            setIsPlacingStart(false);
+        } else if (isPlacingEnd) {
+            setEndPosition([lat, lng]);
+            setIsPlacingEnd(false);
+        }
+    }, [isPlacingStart, isPlacingEnd]);
 
     // Map control functions
     const zoomIn = useCallback(() => {
@@ -249,80 +192,77 @@ const Map = ({ }: MapProps) => {
 
     const resetView = useCallback(() => {
         if (mapRef.current) {
-            mapRef.current.setView(defaultPosition, defaultZoom);
+            mapRef.current.flyTo({
+                center: [defaultPosition.longitude, defaultPosition.latitude],
+                zoom: defaultPosition.zoom
+            });
         }
-    }, []);
+    }, [defaultPosition]);
 
     const flyTo = useCallback((lat: number, lng: number, zoom: number = 14) => {
         if (mapRef.current) {
-            mapRef.current.flyTo([lat, lng], zoom);
-        }
-    }, []);
-
-    // GeoJSON styling - fix by defining it as a function that returns the style function
-    const getStyleFunction = useCallback(() => {
-        // This function returns the actual style function that GeoJSON component will use
-        return (feature?: Feature<any, any>) => {
-            if (!feature || !feature.properties) {
-                return {
-                    color: 'var(--red-car-line)',
-                    weight: 0,
-                    opacity: 0
-                };
-            }
-
-            const isLocalLine = feature.properties.description &&
-                typeof feature.properties.description === 'string' &&
-                feature.properties.description.includes('Local');
-
-            return {
-                color: 'var(--red-car-line)',
-                weight: 4,
-                opacity: 0.8,
-                dashArray: isLocalLine ? '5, 5' : undefined
-            };
-        };
-    }, []);
-
-    // GeoJSON popup and events
-    const onEachFeature = useCallback((feature: Feature, layer: L.Layer) => {
-        if (feature.properties) {
-            const lineName = feature.properties.Name as string | undefined;
-            const description = feature.properties.description as string | undefined;
-
-            if (lineName) {
-                const popupContent = `
-                    <div>
-                        <h3>${lineName}</h3>
-                        ${description ? `<p>${description}</p>` : ''}
-                    </div>
-                `;
-                layer.bindPopup(popupContent);
-            }
+            mapRef.current.flyTo({ center: [lng, lat], zoom });
         }
     }, []);
 
     const setStartLocation = useCallback((lat: number, lng: number) => {
+        shouldFitBoundsRef.current = true; // Search -> force fit bounds
         setStartPosition([lat, lng]);
         if (mapRef.current) {
-            mapRef.current.flyTo([lat, lng], 14);
+            mapRef.current.flyTo({ center: [lng, lat], zoom: 14 });
         }
     }, []);
 
     const setEndLocation = useCallback((lat: number, lng: number) => {
+        shouldFitBoundsRef.current = true; // Search -> force fit bounds
         setEndPosition([lat, lng]);
         if (mapRef.current) {
-            mapRef.current.flyTo([lat, lng], 14);
+            mapRef.current.flyTo({ center: [lng, lat], zoom: 14 });
         }
     }, []);
 
-    // Auto-zoom when both points are set
+    // Auto-zoom logic
     useEffect(() => {
-        if (startPosition && endPosition && mapRef.current) {
-            const bounds = L.latLngBounds([startPosition, endPosition]);
-            mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+        const isRouteComplete = !!(startPosition && endPosition);
+
+        if (isRouteComplete && mapRef.current) {
+            // We fit bounds if:
+            // 1. It's explicitly requested (e.g. from search)
+            // 2. OR the route just became complete (transition from partial to full)
+            if (shouldFitBoundsRef.current || !wasRouteCompleteRef.current) {
+
+                let minLng = Math.min(startPosition[1], endPosition[1]);
+                let maxLng = Math.max(startPosition[1], endPosition[1]);
+                let minLat = Math.min(startPosition[0], endPosition[0]);
+                let maxLat = Math.max(startPosition[0], endPosition[0]);
+
+                // If we have a route result, use its path to get the true bounding box
+                // This ensures the whole route is visible, not just the start/end box
+                if (routeResult && routeResult.path.length > 0) {
+                    routeResult.path.forEach(point => {
+                        const [lng, lat] = point;
+                        minLng = Math.min(minLng, lng);
+                        maxLng = Math.max(maxLng, lng);
+                        minLat = Math.min(minLat, lat);
+                        maxLat = Math.max(maxLat, lat);
+                    });
+                }
+
+                mapRef.current.fitBounds(
+                    [[minLng, minLat], [maxLng, maxLat]],
+                    {
+                        padding: { top: 100, bottom: 100, left: 450, right: 100 }
+                    }
+                );
+
+                // Reset flag
+                shouldFitBoundsRef.current = false;
+            }
         }
-    }, [startPosition, endPosition]);
+
+        // Update history
+        wasRouteCompleteRef.current = isRouteComplete;
+    }, [startPosition, endPosition, routeResult]);
 
     // Expose methods to parent via window object
     useEffect(() => {
@@ -343,53 +283,93 @@ const Map = ({ }: MapProps) => {
         };
     }, [startPlacingStart, startPlacingEnd, zoomIn, zoomOut, resetView, flyTo, setStartLocation, setEndLocation]);
 
+    // Route GeoJSON
+    const routeGeoJson = useMemo(() => {
+        if (!routeResult) return null;
+        return {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+                type: 'LineString',
+                coordinates: routeResult.path
+            }
+        };
+    }, [routeResult]);
+
     return (
         <div className="h-full w-full relative">
-            <MapContainer
-                center={defaultPosition}
-                zoom={defaultZoom}
-                style={{ height: '100%', width: '100%' }}
-                zoomControl={false} // Hide default zoom control
-                attributionControl={true} // Keep attribution but we'll style it
-                className="leaflet-container-custom" // Add custom class for styling
+            <MapGL
+                ref={mapRef}
+                {...viewState}
+                onMove={(evt: ViewStateChangeEvent) => setViewState(evt.viewState)}
+                style={{ width: '100%', height: '100%' }}
+                mapStyle={MAPBOX_STYLE}
+                mapboxAccessToken={MAPBOX_TOKEN}
+                onClick={handleMapClick}
+                attributionControl={true}
             >
-                <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-
+                {/* Lines Layer */}
                 {geoJsonData && (
-                    <GeoJSON
-                        data={geoJsonData}
-                        style={getStyleFunction()}
-                        onEachFeature={onEachFeature}
-                    />
+                    <Source id="pe-lines" type="geojson" data={geoJsonData}>
+                        <Layer
+                            id="pe-lines-layer"
+                            type="line"
+                            paint={{
+                                'line-color': '#ff0000', // var(--red-car-line) approximation
+                                'line-width': 4,
+                                'line-opacity': 0.8
+                            }}
+                        />
+                    </Source>
                 )}
 
-                <MapEventHandler
-                    isPlacingStart={isPlacingStart}
-                    isPlacingEnd={isPlacingEnd}
-                    onStartPlaced={handleStartPlaced}
-                    onEndPlaced={handleEndPlaced}
-                />
+                {/* Route Layer */}
+                {routeGeoJson && (
+                    <Source id="route" type="geojson" data={routeGeoJson as any}>
+                        <Layer
+                            id="route-layer"
+                            type="line"
+                            paint={{
+                                'line-color': '#0000ff',
+                                'line-width': 6,
+                                'line-opacity': 0.7
+                            }}
+                        />
+                    </Source>
+                )}
 
-                <MapController mapRef={mapRef} />
-
+                {/* Markers */}
                 {startPosition && (
-                    <Marker position={startPosition} icon={startIcon} />
+                    <Marker longitude={startPosition[1]} latitude={startPosition[0]} anchor="bottom">
+                        <div className="text-4xl">📍</div>
+                    </Marker>
                 )}
 
                 {endPosition && (
-                    <Marker position={endPosition} icon={endIcon} />
+                    <Marker longitude={endPosition[1]} latitude={endPosition[0]} anchor="bottom">
+                        <div className="text-4xl">🏁</div>
+                    </Marker>
                 )}
 
-                {routeResult && (
-                    <Polyline
-                        positions={routeResult.path.map(p => [p[1], p[0]])}
-                        pathOptions={{ color: 'blue', weight: 6, opacity: 0.7 }}
-                    />
-                )}
-            </MapContainer>
+                {/* Stations (optional, if we want to show them) */}
+                {/* 
+                {stationsData && (
+                    <Source id="stations" type="geojson" data={stationsData}>
+                        <Layer
+                            id="stations-layer"
+                            type="circle"
+                            paint={{
+                                'circle-radius': 4,
+                                'circle-color': '#fff',
+                                'circle-stroke-width': 1,
+                                'circle-stroke-color': '#000'
+                            }}
+                        />
+                    </Source>
+                )} 
+                */}
+
+            </MapGL>
 
             {isPlacingStart && (
                 <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-background p-2 rounded-md border border-border shadow-md z-[1000]">
