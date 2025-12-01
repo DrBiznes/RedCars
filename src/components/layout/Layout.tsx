@@ -3,6 +3,7 @@ import Header from './Header';
 import Footer from './Footer';
 import Map from "@/components/map/Map";
 import ControlPanel from "@/components/ui/ControlPanel";
+import ZoomControls from "@/components/ui/ZoomControls";
 
 // Update the window interface to match window.mapControls
 declare global {
@@ -19,7 +20,6 @@ declare global {
 }
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
-  const [isCollapsed, setIsCollapsed] = React.useState(false);
 
   const handleStartMarkerSelect = () => {
     if (window.mapControls) {
@@ -33,11 +33,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const handleResetView = () => {
-    if (window.mapControls) {
-      window.mapControls.resetView();
-    }
-  };
+
 
   const handleLocationSelect = (lat: number, lon: number) => {
     if (window.mapControls) {
@@ -48,10 +44,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-['Josefin_Sans']">
-      <Header
-        isCollapsed={isCollapsed}
-        onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
-      />
+      <Header />
 
       <div className="flex-1 relative overflow-hidden">
         {/* Main content (map) always takes full width */}
@@ -64,11 +57,11 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         <ControlPanel
           onStartMarkerSelect={handleStartMarkerSelect}
           onEndMarkerSelect={handleEndMarkerSelect}
-          onResetView={handleResetView}
           onLocationSelect={handleLocationSelect}
-          isCollapsed={isCollapsed}
-          onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
         />
+
+        {/* Zoom Controls */}
+        <ZoomControls />
       </div>
 
       <Footer />

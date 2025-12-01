@@ -2,42 +2,33 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { RouteResult } from '@/lib/graph';
-import { MapPin, Navigation, RotateCcw } from 'lucide-react';
+import { MapPin, Navigation } from 'lucide-react';
 import SearchBox from './SearchBox';
 import { Separator } from '@/components/ui/separator';
 
 interface ControlPanelProps {
     onStartMarkerSelect: () => void;
     onEndMarkerSelect: () => void;
-    onResetView: () => void;
     onLocationSelect: (lat: number, lon: number, name: string) => void;
-    isCollapsed: boolean;
-    onToggleCollapse: () => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
     onStartMarkerSelect,
     onEndMarkerSelect,
-    onResetView,
-    onLocationSelect,
-    isCollapsed,
-    onToggleCollapse
+    onLocationSelect
 }) => {
     const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
 
     useEffect(() => {
         const handleRouteCalculated = (event: CustomEvent<RouteResult | null>) => {
             setRouteResult(event.detail);
-            if (event.detail && isCollapsed) {
-                onToggleCollapse();
-            }
         };
 
         window.addEventListener('route-calculated', handleRouteCalculated as EventListener);
         return () => {
             window.removeEventListener('route-calculated', handleRouteCalculated as EventListener);
         };
-    }, [isCollapsed, onToggleCollapse]);
+    }, []);
 
     const handleGoogleMapsClick = () => {
         if (!routeResult || routeResult.path.length === 0) return;
@@ -49,8 +40,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
     return (
         <div className={cn(
-            "absolute top-28 left-4 z-10 transition-all duration-300 ease-in-out flex flex-col gap-2",
-            isCollapsed ? "w-0 opacity-0 pointer-events-none" : "w-96 opacity-100"
+            "absolute top-36 left-6 z-10 transition-all duration-300 ease-in-out flex flex-col gap-2 w-96 opacity-100"
         )}>
             {/* Main Panel */}
             <div className={cn(
@@ -60,7 +50,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 {/* Header Section */}
                 <div className="p-5 bg-muted/30 border-b border-border/50">
                     <h2 className="font-['Josefin_Sans'] text-2xl font-bold text-foreground mb-1">Trip Planner</h2>
-                    <p className="text-xs text-muted-foreground uppercase tracking-widest">Pacific Electric Network</p>
                 </div>
 
                 <div className="p-5 space-y-6 overflow-y-auto custom-scrollbar">
@@ -150,15 +139,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     )}
                 </div>
 
-                {/* Footer Actions */}
-                <div className="p-4 bg-muted/30 border-t border-border/50 flex justify-between">
-                    <Button variant="ghost" size="sm" onClick={onResetView} className="text-xs text-muted-foreground hover:text-foreground">
-                        <RotateCcw className="h-3 w-3 mr-1" />
-                        Reset View
-                    </Button>
-                </div>
             </div>
         </div>
+
     );
 };
 
