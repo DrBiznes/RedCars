@@ -1,7 +1,7 @@
 import * as turf from '@turf/turf';
 import { Feature, LineString, Position } from 'geojson';
 
-// Default speed in mph (as agreed with user)
+// Default speed in mph
 export const DEFAULT_SPEED_MPH = 30;
 export const WALKING_SPEED_MPH = 3;
 // Transfer penalty in minutes
