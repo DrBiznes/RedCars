@@ -6,6 +6,11 @@ import { MapPin } from 'lucide-react';
 import SearchBox from './SearchBox';
 import TramIcon from './TramIcon';
 import { Separator } from '@/components/ui/separator';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ControlPanelProps {
     onStartMarkerSelect: () => void;
@@ -68,29 +73,41 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     <div className="space-y-4">
                         {/* Start Point */}
                         <div className="flex gap-2 items-center">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-12 w-12 shrink-0 border-dashed border-2 hover:border-green-500/50 hover:bg-green-500/5 dark:hover:bg-green-500/10 transition-all group"
-                                onClick={onStartMarkerSelect}
-                                title="Set Start on Map"
-                            >
-                                <MapPin className="h-5 w-5 text-green-600 group-hover:scale-110 transition-transform" />
-                            </Button>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-12 w-12 shrink-0 border-dashed border-2 hover:border-green-500/50 hover:bg-green-500/5 dark:hover:bg-green-500/10 transition-all group"
+                                        onClick={onStartMarkerSelect}
+                                    >
+                                        <MapPin className="h-5 w-5 text-green-600 group-hover:scale-110 transition-transform" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Set Start on Map</p>
+                                </TooltipContent>
+                            </Tooltip>
                             <SearchBox onLocationSelect={handleStartLocationSelect} placeholder="Start Location..." />
                         </div>
 
                         {/* End Point */}
                         <div className="flex gap-2 items-center">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-12 w-12 shrink-0 border-dashed border-2 hover:border-red-500/50 hover:bg-red-500/5 dark:hover:bg-red-500/10 transition-all group"
-                                onClick={onEndMarkerSelect}
-                                title="Set Destination on Map"
-                            >
-                                <MapPin className="h-5 w-5 text-red-600 group-hover:scale-110 transition-transform" />
-                            </Button>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-12 w-12 shrink-0 border-dashed border-2 hover:border-red-500/50 hover:bg-red-500/5 dark:hover:bg-red-500/10 transition-all group"
+                                        onClick={onEndMarkerSelect}
+                                    >
+                                        <MapPin className="h-5 w-5 text-red-600 group-hover:scale-110 transition-transform" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Set Destination on Map</p>
+                                </TooltipContent>
+                            </Tooltip>
                             <SearchBox onLocationSelect={handleEndLocationSelect} placeholder="Destination..." />
                         </div>
                     </div>
