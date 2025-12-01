@@ -1,29 +1,38 @@
 import { Button } from '@/components/ui/button';
-import { Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-const Header = () => {
+interface HeaderProps {
+    isCollapsed?: boolean;
+    onToggleCollapse?: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ isCollapsed = false, onToggleCollapse }) => {
     return (
-        <header className="w-full bg-background text-foreground py-3 px-4 border-b border-border z-20 relative">
-            <div className="container mx-auto flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                    <span className="text-xl font-bold text-red-car-red">Pacific Electric</span>
-                    <span className="text-sm hidden sm:inline">Time Machine</span>
-                </div>
-
-                <div className="relative w-full max-w-md mx-4 hidden md:block">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Search className="h-4 w-4 text-muted-foreground" />
+        <header className="absolute top-0 left-0 right-0 z-50 pointer-events-none">
+            <div className="container mx-0 max-w-none p-4 flex justify-between items-start">
+                <div className="flex items-start gap-2 pointer-events-auto">
+                    <div className="bg-background/90 backdrop-blur-md border border-border/50 shadow-lg rounded-2xl p-3 flex items-center gap-3">
+                        <img src="/PELogoBW.svg" alt="Pacific Electric Logo" className="h-10 w-10 opacity-90" />
+                        <div className="flex flex-col">
+                            <span className="text-xl font-bold text-foreground leading-none font-['Josefin_Sans'] tracking-tight">Pacific Electric</span>
+                            <span className="text-xs text-muted-foreground font-medium tracking-widest uppercase">Time Machine</span>
+                        </div>
                     </div>
-                    <input
-                        type="text"
-                        placeholder="Search for a location..."
-                        className="bg-background w-full pl-10 pr-4 py-2 border border-border rounded-full text-sm"
-                    />
+
+                    {onToggleCollapse && (
+                        <Button
+                            variant="secondary"
+                            size="icon"
+                            className="h-[66px] w-10 rounded-2xl shadow-lg bg-background/90 backdrop-blur-md border border-border/50"
+                            onClick={onToggleCollapse}
+                        >
+                            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                        </Button>
+                    )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" className="rounded-full">About</Button>
-                    <Button variant="outline" size="sm" className="rounded-full">Help</Button>
+                <div className="flex items-center gap-2 pointer-events-auto">
+                    <Button variant="secondary" size="sm" className="rounded-full shadow-md bg-background/90 backdrop-blur-md border border-border/50 font-['Josefin_Sans']">About</Button>
                 </div>
             </div>
         </header>

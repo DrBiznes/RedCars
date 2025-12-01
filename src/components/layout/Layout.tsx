@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Header from './Header';
 import Footer from './Footer';
-import Sidebar from "@/components/sidebar/Sidebar";
 import Map from "@/components/map/Map";
-import MapDock from "@/components/map/MapDock";
+import ControlPanel from "@/components/ui/ControlPanel";
 
 // Update the window interface to match window.mapControls
 declare global {
@@ -14,16 +13,13 @@ declare global {
       zoomIn: () => void;
       zoomOut: () => void;
       resetView: () => void;
+      flyTo: (lat: number, lng: number, zoom?: number) => void;
     };
   }
 }
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
-  const [showSidebar, setShowSidebar] = useState(true); // Default to open for debugging
-
-  const toggleSidebar = () => {
-    setShowSidebar(prev => !prev);
-  };
+  const [isCollapsed, setIsCollapsed] = React.useState(false);
 
   const handleStartMarkerSelect = () => {
     if (window.mapControls) {
@@ -37,28 +33,25 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const handleZoomIn = () => {
-    if (window.mapControls) {
-      window.mapControls.zoomIn();
-    }
-  };
-
-  const handleZoomOut = () => {
-    if (window.mapControls) {
-      window.mapControls.zoomOut();
-    }
-  };
-
   const handleResetView = () => {
     if (window.mapControls) {
       window.mapControls.resetView();
     }
   };
 
+  const handleLocationSelect = (lat: number, lon: number) => {
+    if (window.mapControls) {
+      window.mapControls.flyTo(lat, lon, 14);
+      // Optionally place a temporary marker or ask user what to do
+    }
+  };
 
   return (
-    <div className="flex flex-col h-screen">
-      <Header />
+    <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-['Josefin_Sans']">
+      <Header
+        isCollapsed={isCollapsed}
+        onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
+      />
 
       <div className="flex-1 relative overflow-hidden">
         {/* Main content (map) always takes full width */}
@@ -67,19 +60,14 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           {children}
         </main>
 
-        {/* Sidebar that slides over the map */}
-        <Sidebar
-          onClose={toggleSidebar}
-          isOpen={showSidebar}
-        />
-
-        {/* Position the dock absolutely relative to the main container so it's above the map */}
-        <MapDock
+        {/* Unified Control Panel */}
+        <ControlPanel
           onStartMarkerSelect={handleStartMarkerSelect}
           onEndMarkerSelect={handleEndMarkerSelect}
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
           onResetView={handleResetView}
+          onLocationSelect={handleLocationSelect}
+          isCollapsed={isCollapsed}
+          onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
         />
       </div>
 

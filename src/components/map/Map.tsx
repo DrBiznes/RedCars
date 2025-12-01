@@ -56,6 +56,7 @@ declare global {
             zoomIn: () => void;
             zoomOut: () => void;
             resetView: () => void;
+            flyTo: (lat: number, lng: number, zoom?: number) => void;
         };
     }
 }
@@ -250,6 +251,12 @@ const Map = ({ }: MapProps) => {
         }
     }, []);
 
+    const flyTo = useCallback((lat: number, lng: number, zoom: number = 14) => {
+        if (mapRef.current) {
+            mapRef.current.flyTo([lat, lng], zoom);
+        }
+    }, []);
+
     // GeoJSON styling - fix by defining it as a function that returns the style function
     const getStyleFunction = useCallback(() => {
         // This function returns the actual style function that GeoJSON component will use
@@ -300,14 +307,15 @@ const Map = ({ }: MapProps) => {
             startPlacingEnd,
             zoomIn,
             zoomOut,
-            resetView
+            resetView,
+            flyTo
         };
 
         // Cleanup on unmount
         return () => {
             window.mapControls = undefined;
         };
-    }, [startPlacingStart, startPlacingEnd, zoomIn, zoomOut, resetView]);
+    }, [startPlacingStart, startPlacingEnd, zoomIn, zoomOut, resetView, flyTo]);
 
     return (
         <div className="h-full w-full relative">
