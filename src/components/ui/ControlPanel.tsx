@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { RouteResult, consolidateSegments } from '@/lib/graph';
-import { MapPin } from 'lucide-react';
+import { MapPin, ExternalLink } from 'lucide-react';
 import SearchBox from './SearchBox';
 import TramIcon from './TramIcon';
 import { Separator } from '@/components/ui/separator';
@@ -152,10 +152,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 </div>
 
                                 <Button
-                                    className="w-full bg-red-car-red hover:bg-red-car-red/90 text-white font-['Josefin_Sans'] tracking-wide shadow-lg shadow-red-car-red/20"
+                                    className="w-full bg-red-car-red hover:bg-red-car-red/90 text-white font-['Josefin_Sans'] tracking-wide shadow-lg shadow-red-car-red/20 flex items-center justify-center gap-2"
                                     onClick={handleGoogleMapsClick}
                                 >
                                     Compare with Modern Transit
+                                    <ExternalLink className="h-4 w-4 relative -top-[1px]" />
                                 </Button>
                             </div>
 
