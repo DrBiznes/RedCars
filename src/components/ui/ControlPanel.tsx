@@ -9,13 +9,11 @@ import { Separator } from '@/components/ui/separator';
 interface ControlPanelProps {
     onStartMarkerSelect: () => void;
     onEndMarkerSelect: () => void;
-    onLocationSelect: (lat: number, lon: number, name: string) => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
     onStartMarkerSelect,
-    onEndMarkerSelect,
-    onLocationSelect
+    onEndMarkerSelect
 }) => {
     const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
 
@@ -38,6 +36,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         window.open(url, '_blank');
     };
 
+    const handleStartLocationSelect = (lat: number, lon: number) => {
+        if (window.mapControls) {
+            window.mapControls.setStartLocation(lat, lon);
+        }
+    };
+
+    const handleEndLocationSelect = (lat: number, lon: number) => {
+        if (window.mapControls) {
+            window.mapControls.setEndLocation(lat, lon);
+        }
+    };
+
     return (
         <div className={cn(
             "absolute top-36 left-6 z-10 transition-all duration-300 ease-in-out flex flex-col gap-2 w-96 opacity-100"
@@ -55,25 +65,32 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 <div className="p-5 space-y-6 overflow-y-auto custom-scrollbar">
                     {/* Search Section */}
                     <div className="space-y-4">
-                        <SearchBox onLocationSelect={onLocationSelect} placeholder="Where to?" />
-
-                        <div className="grid grid-cols-2 gap-3">
+                        {/* Start Point */}
+                        <div className="flex gap-2 items-center">
                             <Button
                                 variant="outline"
-                                className="h-auto py-3 flex flex-col gap-1 items-center justify-center border-dashed border-2 hover:border-green-500/50 hover:bg-green-500/5 dark:hover:bg-green-500/10 transition-all group"
+                                size="icon"
+                                className="h-12 w-12 shrink-0 border-dashed border-2 hover:border-green-500/50 hover:bg-green-500/5 dark:hover:bg-green-500/10 transition-all group"
                                 onClick={onStartMarkerSelect}
+                                title="Set Start on Map"
                             >
                                 <MapPin className="h-5 w-5 text-green-600 group-hover:scale-110 transition-transform" />
-                                <span className="text-xs font-medium">Set Start</span>
                             </Button>
+                            <SearchBox onLocationSelect={handleStartLocationSelect} placeholder="Start Location..." />
+                        </div>
+
+                        {/* End Point */}
+                        <div className="flex gap-2 items-center">
                             <Button
                                 variant="outline"
-                                className="h-auto py-3 flex flex-col gap-1 items-center justify-center border-dashed border-2 hover:border-red-500/50 hover:bg-red-500/5 dark:hover:bg-red-500/10 transition-all group"
+                                size="icon"
+                                className="h-12 w-12 shrink-0 border-dashed border-2 hover:border-red-500/50 hover:bg-red-500/5 dark:hover:bg-red-500/10 transition-all group"
                                 onClick={onEndMarkerSelect}
+                                title="Set Destination on Map"
                             >
                                 <MapPin className="h-5 w-5 text-red-600 group-hover:scale-110 transition-transform" />
-                                <span className="text-xs font-medium">Set End</span>
                             </Button>
+                            <SearchBox onLocationSelect={handleEndLocationSelect} placeholder="Destination..." />
                         </div>
                     </div>
 
@@ -141,7 +158,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
             </div>
         </div>
-
     );
 };
 

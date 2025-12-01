@@ -190,11 +190,11 @@
 
 /* Marker colorization */
 .start-marker {
-  filter: hue-rotate(120deg); /* Makes it green */
+  filter: hue-rotate(-120deg) saturate(1.5); /* Blue -> Green */
 }
 
 .end-marker {
-  filter: hue-rotate(0deg); /* Keeps it red */
+  filter: hue-rotate(150deg) saturate(1.5); /* Blue -> Red */
 }
 
 /* Animation for sidebar */

@@ -15,6 +15,8 @@ declare global {
       zoomOut: () => void;
       resetView: () => void;
       flyTo: (lat: number, lng: number, zoom?: number) => void;
+      setStartLocation: (lat: number, lng: number) => void;
+      setEndLocation: (lat: number, lng: number) => void;
     };
   }
 }
@@ -35,12 +37,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
 
 
-  const handleLocationSelect = (lat: number, lon: number) => {
-    if (window.mapControls) {
-      window.mapControls.flyTo(lat, lon, 14);
-      // Optionally place a temporary marker or ask user what to do
-    }
-  };
+
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-['Josefin_Sans']">
@@ -57,7 +54,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         <ControlPanel
           onStartMarkerSelect={handleStartMarkerSelect}
           onEndMarkerSelect={handleEndMarkerSelect}
-          onLocationSelect={handleLocationSelect}
         />
 
         {/* Zoom Controls */}

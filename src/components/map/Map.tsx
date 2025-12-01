@@ -57,6 +57,8 @@ declare global {
             zoomOut: () => void;
             resetView: () => void;
             flyTo: (lat: number, lng: number, zoom?: number) => void;
+            setStartLocation: (lat: number, lng: number) => void;
+            setEndLocation: (lat: number, lng: number) => void;
         };
     }
 }
@@ -300,6 +302,28 @@ const Map = ({ }: MapProps) => {
         }
     }, []);
 
+    const setStartLocation = useCallback((lat: number, lng: number) => {
+        setStartPosition([lat, lng]);
+        if (mapRef.current) {
+            mapRef.current.flyTo([lat, lng], 14);
+        }
+    }, []);
+
+    const setEndLocation = useCallback((lat: number, lng: number) => {
+        setEndPosition([lat, lng]);
+        if (mapRef.current) {
+            mapRef.current.flyTo([lat, lng], 14);
+        }
+    }, []);
+
+    // Auto-zoom when both points are set
+    useEffect(() => {
+        if (startPosition && endPosition && mapRef.current) {
+            const bounds = L.latLngBounds([startPosition, endPosition]);
+            mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+        }
+    }, [startPosition, endPosition]);
+
     // Expose methods to parent via window object
     useEffect(() => {
         window.mapControls = {
@@ -308,14 +332,16 @@ const Map = ({ }: MapProps) => {
             zoomIn,
             zoomOut,
             resetView,
-            flyTo
+            flyTo,
+            setStartLocation,
+            setEndLocation
         };
 
         // Cleanup on unmount
         return () => {
             window.mapControls = undefined;
         };
-    }, [startPlacingStart, startPlacingEnd, zoomIn, zoomOut, resetView, flyTo]);
+    }, [startPlacingStart, startPlacingEnd, zoomIn, zoomOut, resetView, flyTo, setStartLocation, setEndLocation]);
 
     return (
         <div className="h-full w-full relative">
