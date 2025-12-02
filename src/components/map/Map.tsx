@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { MaterialLocationIcon } from '@/components/ui/MaterialLocationIcon';
-import { Loader2 } from 'lucide-react';
+import { PacificElectricLoader } from '@/components/ui/PacificElectricLoader';
 import MapGL, { Source, Layer, Marker, MapRef } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { FeatureCollection, LineString } from 'geojson';
@@ -391,7 +391,7 @@ const Map = ({ }: MapProps) => {
             {/* Loading Overlay */}
             {!isMapLoaded && (
                 <div className="absolute inset-0 z-[1] bg-background flex flex-col items-center justify-center gap-4 animate-in fade-in duration-300">
-                    <Loader2 className="h-12 w-12 text-red-car-red animate-spin" />
+                    <PacificElectricLoader className="h-24 w-24 text-red-car-red" />
                 </div>
             )}
         </div>

@@ -119,6 +119,7 @@
   --color-red-car-red: var(--red-car-red);
   --color-red-car-line: var(--red-car-line);
   --color-red-car-stop: var(--red-car-stop);
+  --animate-spin-slow: spin 3s linear infinite;
 }
 
 @layer base {
