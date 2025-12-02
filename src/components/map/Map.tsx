@@ -47,6 +47,7 @@ const Map = ({ }: MapProps) => {
     const [geoJsonData, setGeoJsonData] = useState<FeatureCollection<LineString> | null>(null);
     // const [stationsData, setStationsData] = useState<FeatureCollection<Point> | null>(null);
     const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
+    const [isMapLoaded, setIsMapLoaded] = useState(false);
 
     // Graph instance
     const graph = useMemo(() => new Graph(), []);
@@ -307,10 +308,11 @@ const Map = ({ }: MapProps) => {
                 mapStyle={MAPBOX_STYLE}
                 mapboxAccessToken={MAPBOX_TOKEN}
                 onClick={handleMapClick}
+                onLoad={() => setIsMapLoaded(true)}
                 attributionControl={true}
             >
-                {/* Lines Layer */}
-                {geoJsonData && (
+                {/* Lines Layer - Only render when map is loaded */}
+                {isMapLoaded && geoJsonData && (
                     <Source id="pe-lines" type="geojson" data={geoJsonData}>
                         <Layer
                             id="pe-lines-layer"
@@ -324,8 +326,8 @@ const Map = ({ }: MapProps) => {
                     </Source>
                 )}
 
-                {/* Route Layer */}
-                {routeGeoJson && (
+                {/* Route Layer - Only render when map is loaded */}
+                {isMapLoaded && routeGeoJson && (
                     <Source id="route" type="geojson" data={routeGeoJson as any}>
                         <Layer
                             id="route-layer"

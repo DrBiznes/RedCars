@@ -1,4 +1,5 @@
 
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 
 const Header = () => {
@@ -10,13 +11,15 @@ const Header = () => {
                         <img src="/PELogoBW.svg" alt="Pacific Electric Logo" className="h-16 w-16 opacity-90" />
                         <div className="flex flex-col">
                             <span className="text-3xl font-bold text-foreground leading-none font-['Josefin_Sans'] tracking-tight">Pacific Electric</span>
-                            <span className="text-sm text-muted-foreground font-medium tracking-widest uppercase mt-1">Time Machine</span>
+                            <span className="text-sm text-muted-foreground font-medium tracking-widest uppercase mt-1">Pathfinder</span>
                         </div>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-2 pointer-events-auto">
-                    <Button variant="secondary" size="sm" className="rounded-full shadow-md bg-background/90 backdrop-blur-md border border-border/50 font-['Josefin_Sans']">About</Button>
+                    <Link to="/about">
+                        <Button variant="secondary" size="sm" className="rounded-full shadow-md bg-background/90 backdrop-blur-md border border-border/50 font-['Josefin_Sans']">About</Button>
+                    </Link>
                 </div>
             </div>
         </header>

@@ -1,4 +1,4 @@
-# Pacific Electric Red Car Travel Time Comparison Tool
+# Pacific Electric Pathfinder
 ## Project Specification
 
 ### Project Overview
