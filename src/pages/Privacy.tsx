@@ -15,15 +15,15 @@ const Privacy = () => {
                 <h1 className="text-4xl font-bold text-red-car-red">Privacy Policy</h1>
                 <div className="prose dark:prose-invert">
                     <p>
-                        Your privacy is important to us.
+                        Your privacy is important to me.
                     </p>
                     <h3>1. Data Collection</h3>
                     <p>
-                        We do not collect any personal data. We use local storage on your device to remember if you have visited the site before (to show the welcome modal).
+                        I do not collect any personal data. I use local storage on your device to remember if you have visited the site before (to show the welcome popup).
                     </p>
                     <h3>2. Analytics</h3>
                     <p>
-                        We may use anonymous analytics to understand how the site is being used.
+                        I may use anonymous analytics to understand how the site is being used.
                     </p>
                 </div>
             </div>

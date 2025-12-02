@@ -1,24 +1,33 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import Layout from '@/components/layout/Layout';
 import WelcomeModal from '@/components/ui/WelcomeModal';
-import About from '@/pages/About';
-import Terms from '@/pages/Terms';
-import Privacy from '@/pages/Privacy';
+import { PacificElectricLoader } from '@/components/ui/PacificElectricLoader';
+
+const About = lazy(() => import('@/pages/About'));
+const Terms = lazy(() => import('@/pages/Terms'));
+const Privacy = lazy(() => import('@/pages/Privacy'));
 
 function App() {
     return (
         <Router>
-            <Routes>
-                <Route path="/" element={
-                    <Layout>
-                        <WelcomeModal />
-                        {/* Additional content that might overlay the map can go here */}
-                    </Layout>
-                } />
-                <Route path="/about" element={<About />} />
-                <Route path="/terms" element={<Terms />} />
-                <Route path="/privacy" element={<Privacy />} />
-            </Routes>
+            <Suspense fallback={
+                <div className="h-screen w-screen flex items-center justify-center bg-background">
+                    <PacificElectricLoader className="h-24 w-24 text-red-car-red" />
+                </div>
+            }>
+                <Routes>
+                    <Route path="/" element={
+                        <Layout>
+                            <WelcomeModal />
+                            {/* Additional content that might overlay the map can go here */}
+                        </Layout>
+                    } />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/terms" element={<Terms />} />
+                    <Route path="/privacy" element={<Privacy />} />
+                </Routes>
+            </Suspense>
         </Router>
     );
 }

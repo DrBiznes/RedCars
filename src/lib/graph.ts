@@ -131,7 +131,6 @@ export class Graph {
         // Iterate through all nodes and find pairs on DIFFERENT lines that are close
         const TRANSFER_DISTANCE_MILES = 0.25; // Tightened to 0.25 miles for better accuracy
         const nodesArray = Array.from(this.nodes.values());
-        let transferEdgesCount = 0;
 
         // This is O(N^2) which is fine for ~3000 nodes. 
         // For larger graphs, use a spatial index (RBush).
@@ -153,12 +152,11 @@ export class Graph {
 
                     this.addEdge({ from: nodeA.id, to: nodeB.id, weight: totalWeight, distance: dist });
                     this.addEdge({ from: nodeB.id, to: nodeA.id, weight: totalWeight, distance: dist });
-                    transferEdgesCount++;
                 }
             }
         }
-        console.log(`Graph built: ${this.nodes.size} nodes, ${this.edges.size} edges. Added ${transferEdgesCount} transfer edges.`);
     }
+
 
     analyzeConnectivity() {
         const visited = new Set<string>();
@@ -183,18 +181,6 @@ export class Graph {
                     }
                 }
                 components.push(component);
-            }
-        });
-
-        console.log(`Graph Connectivity Analysis:`);
-        console.log(`Total Nodes: ${this.nodes.size}`);
-        console.log(`Connected Components: ${components.length}`);
-        components.sort((a, b) => b.length - a.length);
-        components.forEach((comp, idx) => {
-            console.log(`Component ${idx + 1}: ${comp.length} nodes`);
-            if (idx < 5 && comp.length < 10) {
-                // Print sample nodes for small components to debug
-                console.log(`  Sample nodes: ${comp.slice(0, 3).join(', ')}`);
             }
         });
     }
@@ -280,12 +266,10 @@ export class Graph {
         stack.reverse();
 
         let totalTime = 0;
-        let totalDist = 0;
 
         stack.forEach(item => {
             const { edge } = item;
             totalTime += edge.weight;
-            totalDist += edge.distance;
 
             if (edge.geometry) {
                 // If it's a travel edge

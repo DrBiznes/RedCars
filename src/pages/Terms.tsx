@@ -23,7 +23,11 @@ const Terms = () => {
                     </p>
                     <h3>2. Liability</h3>
                     <p>
-                        We are not responsible for any nostalgia-induced sadness regarding the loss of public transit infrastructure.
+                        I am not responsible for any nostalgia-induced sadness regarding the loss of public transit infrastructure.
+                    </p>
+                    <h3>3. Assets & Attribution</h3>
+                    <p>
+                        All Pacific Electric related assets (logos, images, etc.) are in the public domain and were sourced from Wikimedia Commons.
                     </p>
                 </div>
             </div>

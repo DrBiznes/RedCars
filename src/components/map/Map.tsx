@@ -3,7 +3,7 @@ import { MaterialLocationIcon } from '@/components/ui/MaterialLocationIcon';
 import { PacificElectricLoader } from '@/components/ui/PacificElectricLoader';
 import MapGL, { Source, Layer, Marker, MapRef } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { FeatureCollection, LineString } from 'geojson';
+import { FeatureCollection, LineString, Feature } from 'geojson';
 import { Graph, RouteResult } from '@/lib/graph';
 import { calculateDistanceMiles, calculateTravelTimeMinutes, WALKING_SPEED_MPH } from '@/lib/geoUtils';
 import type { MapMouseEvent, ViewStateChangeEvent } from 'react-map-gl/mapbox';
@@ -11,10 +11,6 @@ import type { MapMouseEvent, ViewStateChangeEvent } from 'react-map-gl/mapbox';
 // Mapbox token from environment variables
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 const MAPBOX_STYLE = import.meta.env.VITE_MAPBOX_STYLE_URL;
-
-interface MapProps {
-    // No props needed for now
-}
 
 // Global window interface update for map controls
 declare global {
@@ -32,13 +28,13 @@ declare global {
     }
 }
 
-const Map = ({ }: MapProps) => {
+const Map = () => {
     // Los Angeles coordinates
-    const defaultPosition = {
+    const defaultPosition = useMemo(() => ({
         latitude: 33.942,
         longitude: -118.158,
         zoom: 8.84
-    };
+    }), []);
 
     const [viewState, setViewState] = useState(defaultPosition);
     const [startPosition, setStartPosition] = useState<[number, number] | null>(null);
@@ -76,9 +72,7 @@ const Map = ({ }: MapProps) => {
                 // setStationsData(stationsData); // Not used
 
                 // Build graph
-                console.log('Building graph...');
                 graph.buildGraphWithTransfers(linesData);
-                console.log('Graph built:', graph.nodes.size, 'nodes', graph.edges.size, 'edges');
 
             } catch (err) {
                 console.error('Error loading GeoJSON data:', err);
@@ -96,7 +90,6 @@ const Map = ({ }: MapProps) => {
     // Calculate route when start/end change
     useEffect(() => {
         if (startPosition && endPosition && geoJsonData) {
-            console.log('Calculating route...');
 
             // 1. Find nearest points on lines for start/end
             // We need to iterate all lines to find the absolute closest point
@@ -146,7 +139,6 @@ const Map = ({ }: MapProps) => {
                     };
 
                     setRouteResult(fullResult);
-                    console.log('Route calculated:', fullResult);
                     window.dispatchEvent(new CustomEvent('route-calculated', { detail: fullResult }));
                 }
             }
@@ -329,7 +321,7 @@ const Map = ({ }: MapProps) => {
 
                 {/* Route Layer - Only render when map is loaded */}
                 {isMapLoaded && routeGeoJson && (
-                    <Source id="route" type="geojson" data={routeGeoJson as any}>
+                    <Source id="route" type="geojson" data={routeGeoJson as Feature<LineString>}>
                         <Layer
                             id="route-layer"
                             type="line"
