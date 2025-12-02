@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { RouteResult, consolidateSegments } from '@/lib/graph';
-import { MapPin, ExternalLink } from 'lucide-react';
+import { MapPin, ExternalLink, Twitter } from 'lucide-react';
 import SearchBox from './SearchBox';
 import TramIcon from './TramIcon';
 import { Separator } from '@/components/ui/separator';
@@ -42,6 +42,29 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         window.open(url, '_blank');
     };
 
+    const handleTwitterShare = () => {
+        if (!routeResult) return;
+
+        const totalMin = Math.round(routeResult.totalTime);
+        let timeText = '';
+
+        if (totalMin < 60) {
+            timeText = `${totalMin} minutes`;
+        } else {
+            const hrs = Math.floor(totalMin / 60);
+            const mins = totalMin % 60;
+            if (mins === 0) {
+                timeText = hrs === 1 ? '1 hour' : `${hrs} hours`;
+            } else {
+                timeText = `${hrs} hour${hrs > 1 ? 's' : ''} ${mins} minutes`;
+            }
+        }
+
+        const tweetText = `It would have taken me ${timeText} to commute on the Pacific Electric Red Car network. Check it out at https://redcars.jamino.me`;
+        const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+        window.open(twitterUrl, '_blank');
+    };
+
     const handleStartLocationSelect = (lat: number, lon: number) => {
         if (window.mapControls) {
             window.mapControls.setStartLocation(lat, lon);
@@ -64,8 +87,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 "w-full max-h-[calc(100vh-180px)]" // Adjusted to prevent clipping with footer and account for new top position
             )}>
                 {/* Header Section */}
-                <div className="p-5 bg-muted/30 border-b border-border/50">
-                    <h2 className="font-['Josefin_Sans'] text-2xl font-bold text-foreground mb-1">Trip Planner</h2>
+                <div className="p-3 bg-muted/30 border-b border-border/50">
+                    <h2 className="font-['Josefin_Sans'] text-2xl font-bold text-foreground ">Trip Planner</h2>
                 </div>
 
                 <div className="p-5 space-y-6 overflow-y-auto custom-scrollbar">
@@ -151,13 +174,24 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                     </div>
                                 </div>
 
-                                <Button
-                                    className="w-full bg-red-car-red hover:bg-red-car-red/90 text-white font-['Josefin_Sans'] tracking-wide shadow-lg shadow-red-car-red/20 flex items-center justify-center gap-2"
-                                    onClick={handleGoogleMapsClick}
-                                >
-                                    Compare with Modern Transit
-                                    <ExternalLink className="h-4 w-4 relative -top-[1px]" />
-                                </Button>
+                                <div className="space-y-2">
+                                    <Button
+                                        className="w-full bg-red-car-red hover:bg-red-car-red/90 text-white font-['Josefin_Sans'] tracking-wide shadow-lg shadow-red-car-red/20 flex items-center justify-center gap-2"
+                                        onClick={handleGoogleMapsClick}
+                                    >
+                                        Compare with Modern Transit
+                                        <ExternalLink className="h-4 w-4 relative -top-[1px]" />
+                                    </Button>
+
+                                    <Button
+                                        variant="outline"
+                                        className="w-full font-['Josefin_Sans'] tracking-wide flex items-center justify-center gap-2 hover:bg-blue-500/10 hover:border-blue-500/50 hover:text-blue-600 dark:hover:text-blue-400 transition-all"
+                                        onClick={handleTwitterShare}
+                                    >
+                                        Share on Twitter
+                                        <Twitter className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
 
                             {/* Itinerary */}
