@@ -192,31 +192,10 @@
 /* Marker colorization */
 .start-marker {
   filter: hue-rotate(-120deg) saturate(1.5);
-  /* Blue -> Green */
 }
 
 .end-marker {
   filter: hue-rotate(150deg) saturate(1.5);
-  /* Blue -> Red */
-}
-
-/* Animation for sidebar */
-.sidebar-enter {
-  transform: translateX(-100%);
-}
-
-.sidebar-enter-active {
-  transform: translateX(0);
-  transition: transform 300ms;
-}
-
-.sidebar-exit {
-  transform: translateX(0);
-}
-
-.sidebar-exit-active {
-  transform: translateX(-100%);
-  transition: transform 300ms;
 }
 
 /* Make sure tooltips are visible */

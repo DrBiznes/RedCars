@@ -75,6 +75,7 @@ export class Graph {
         lineFeatures.forEach((line, lineIdx) => {
             const coords = line.geometry.coordinates;
             const lineId = line.properties?.Name || `line-${lineIdx}`;
+            const speed = line.properties?.speed || DEFAULT_SPEED_MPH;
             const lineLength = turf.length(line, { units: 'miles' });
 
             // Points of interest on this line: Start, End, and Densified Points
@@ -115,7 +116,7 @@ export class Graph {
                     // Skip if distance is negligible (duplicate points)
                     if (dist < 0.0001) continue;
 
-                    const time = calculateTravelTimeMinutes(dist, DEFAULT_SPEED_MPH);
+                    const time = calculateTravelTimeMinutes(dist, speed);
 
                     // Get geometry for this segment
                     const segment = turf.lineSlice(turf.point(prev.position), turf.point(p.position), line);
