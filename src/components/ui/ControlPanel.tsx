@@ -170,14 +170,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                                 "absolute -left-[21px] top-1 w-3 h-3 rounded-full border-2 border-background shadow-sm transition-colors",
                                                 seg.instructions.includes("Walk") ? "bg-muted-foreground" : "bg-red-car-red"
                                             )} />
-                                            <div className="flex justify-between items-start">
+                                            <div className="flex justify-between items-center">
                                                 <div className="space-y-1">
                                                     <p className="font-medium text-sm leading-tight">{seg.instructions}</p>
                                                     {seg.distance > 0.01 && (
                                                         <p className="text-xs text-muted-foreground">{seg.distance.toFixed(2)} miles</p>
                                                     )}
                                                 </div>
-                                                <span className="text-xs font-bold bg-muted px-2 py-1 rounded-md tabular-nums">
+                                                <span className="text-xs font-bold bg-muted px-2 py-1 rounded-md tabular-nums shrink-0">
                                                     {Math.round(seg.time)} min
                                                 </span>
                                             </div>
