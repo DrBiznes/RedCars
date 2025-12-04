@@ -57,8 +57,8 @@ const Map = () => {
         const fetchData = async () => {
             try {
                 const [linesRes, stationsRes] = await Promise.all([
-                    fetch('/src/data/GeoJSON/lines.geojson'),
-                    fetch('/src/data/GeoJSON/stations.geojson')
+                    fetch('/data/GeoJSON/lines.geojson'),
+                    fetch('/data/GeoJSON/stations.geojson')
                 ]);
 
                 if (!linesRes.ok || !stationsRes.ok) {
