@@ -1,10 +1,8 @@
-
-import { Button } from '@/components/ui/button';
 import { PacificElectricLoader } from '@/components/ui/PacificElectricLoader';
-import { Mail, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const Feedback = () => {
+const NotFound = () => {
     return (
         <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
             {/* Background decoration */}
@@ -17,22 +15,11 @@ const Feedback = () => {
 
                 <div className="space-y-4">
                     <h1 className="text-4xl font-['Josefin_Sans'] font-bold text-foreground">
-                        Contact Me
+                        404
                     </h1>
                     <p className="text-muted-foreground text-lg leading-relaxed">
-                        Shoot me an email if you have any complaints or hate my work or something.
+                        Page not found.
                     </p>
-                </div>
-
-                <div className="pt-4">
-                    <Button
-                        size="lg"
-                        className="bg-red-car-red hover:bg-red-car-red/90 text-white font-['Josefin_Sans'] text-lg px-8 py-6 shadow-lg shadow-red-car-red/20 transition-all hover:scale-105"
-                        onClick={() => window.location.href = 'mailto:contact@jamino.me'}
-                    >
-                        <Mail className="mr-2 h-5 w-5" />
-                        Email Me
-                    </Button>
                 </div>
 
                 <div className="pt-12">
@@ -46,4 +33,4 @@ const Feedback = () => {
     );
 };
 
-export default Feedback;
+export default NotFound;

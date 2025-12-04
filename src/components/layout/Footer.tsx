@@ -12,7 +12,7 @@ const Footer = () => {
                 <div className="flex gap-4">
                     <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
                     <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
-                    <Link to="/feedback" className="hover:text-foreground transition-colors">Feedback</Link>
+                    <a href="mailto:contact@jamino.me" className="hover:text-foreground transition-colors">Feedback</a>
                 </div>
             </div>
         </footer>
