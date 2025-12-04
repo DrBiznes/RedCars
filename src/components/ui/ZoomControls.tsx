@@ -41,7 +41,7 @@ const ZoomControls = () => {
     };
 
     return (
-        <div className="absolute bottom-12 right-6 z-10 flex flex-col gap-2">
+        <div className="hidden md:flex absolute bottom-48 md:bottom-12 right-6 z-10 flex-col gap-2">
             <div className="bg-background/90 backdrop-blur-md border border-border/50 shadow-lg rounded-xl overflow-hidden flex flex-col">
                 <Button
                     variant="ghost"

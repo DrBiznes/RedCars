@@ -5,6 +5,7 @@ import Map from "@/components/map/Map";
 import ControlPanel from "@/components/ui/ControlPanel";
 import ZoomControls from "@/components/ui/ZoomControls";
 
+
 // Update the window interface to match window.mapControls
 declare global {
   interface Window {
@@ -40,7 +41,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
 
   return (
-    <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-['Josefin_Sans']">
+    <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden font-['Josefin_Sans']">
       <Header />
 
       <div className="flex-1 relative overflow-hidden">
@@ -50,7 +51,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           {children}
         </main>
 
-        {/* Unified Control Panel */}
+        {/* Control Panel */}
         <ControlPanel
           onStartMarkerSelect={handleStartMarkerSelect}
           onEndMarkerSelect={handleEndMarkerSelect}

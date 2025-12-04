@@ -5,13 +5,13 @@ import { Button } from '@/components/ui/button';
 const Header = () => {
     return (
         <header className="absolute top-0 left-0 right-0 z-50 pointer-events-none">
-            <div className="container mx-0 max-w-none p-6 flex justify-between items-start">
+            <div className="container mx-0 max-w-none p-4 md:p-6 flex justify-between items-start">
                 <div className="flex items-start gap-2 pointer-events-auto">
-                    <div className="bg-background/90 backdrop-blur-md border border-border/50 shadow-lg rounded-2xl p-5 flex items-center gap-4">
-                        <img src="/PELogoBW.svg" alt="Pacific Electric Logo" className="h-16 w-16 opacity-90" />
+                    <div className="bg-background/90 backdrop-blur-md border border-border/50 shadow-lg rounded-2xl p-3 md:p-5 flex items-center gap-3 md:gap-4">
+                        <img src="/PELogoBW.svg" alt="Pacific Electric Logo" className="h-10 w-10 md:h-16 md:w-16 opacity-90" />
                         <div className="flex flex-col">
-                            <span className="text-3xl font-bold text-foreground leading-none font-['Josefin_Sans'] tracking-tight">Pacific Electric</span>
-                            <span className="text-sm text-muted-foreground font-medium tracking-widest uppercase mt-1">Pathfinder</span>
+                            <span className="text-xl md:text-3xl font-bold text-foreground leading-none font-['Josefin_Sans'] tracking-tight">Pacific Electric</span>
+                            <span className="text-[10px] md:text-sm text-muted-foreground font-medium tracking-widest uppercase mt-0.5 md:mt-1">Pathfinder</span>
                         </div>
                     </div>
                 </div>

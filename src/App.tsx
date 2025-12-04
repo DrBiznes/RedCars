@@ -7,6 +7,7 @@ import { PacificElectricLoader } from '@/components/ui/PacificElectricLoader';
 const About = lazy(() => import('@/pages/About'));
 const Terms = lazy(() => import('@/pages/Terms'));
 const Privacy = lazy(() => import('@/pages/Privacy'));
+const Feedback = lazy(() => import('@/pages/Feedback'));
 
 function App() {
     return (
@@ -26,6 +27,7 @@ function App() {
                     <Route path="/about" element={<About />} />
                     <Route path="/terms" element={<Terms />} />
                     <Route path="/privacy" element={<Privacy />} />
+                    <Route path="/feedback" element={<Feedback />} />
                 </Routes>
             </Suspense>
         </Router>

@@ -37,7 +37,7 @@ const WelcomeModal = () => {
                         />
                     </div>
                     <DialogTitle className="font-['Josefin_Sans'] text-3xl font-bold text-foreground">
-                        Welcome Aboard
+                        Hello There
                     </DialogTitle>
                 </DialogHeader>
 
@@ -47,7 +47,7 @@ const WelcomeModal = () => {
                             I built this project because I wanted to see how my modern-day commute would compare if the Pacific Electric "Red Car" network was still functional today.
                         </p>
                         <p className="text-base text-foreground/90 leading-relaxed mt-4">
-                            This tool reconstructs the lost system, allowing you to plan routes and explore a transit-connected Los Angeles that once was.
+                            The Pacific Electric Pathfinder reconstructs the lost system, allowing you to plan routes in a dreamy transit-connected Los Angeles.
                         </p>
                     </div>
                 </div>
@@ -57,7 +57,7 @@ const WelcomeModal = () => {
                         onClick={handleClose}
                         className="w-full sm:w-auto min-w-[200px] bg-red-car-red hover:bg-red-car-red/90 text-white font-['Josefin_Sans'] text-lg tracking-wide shadow-lg shadow-red-car-red/20"
                     >
-                        Start Journey
+                        Take me there!
                     </Button>
                 </DialogFooter>
             </DialogContent>

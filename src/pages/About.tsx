@@ -32,7 +32,7 @@ const About = () => {
                             For decades, the Red Cars were the lifeblood of Southern California, shaping the region's development and allowing people to travel easily between the city center, the beaches, and the mountains. However, with the rise of the automobile and the expansion of the freeway system, ridership declined. The last Red Car ran in 1961, marking the end of an era.
                         </p>
                         <p>
-                            The network was anchored by massive downtown hubs like the <strong>Subway Terminal Building</strong>, where trains dove underground to speed beneath the congested streets, and the <strong>Pacific Electric Building on 6th and Main</strong>, a stunning Beaux-Arts structure that served as the system's headquarters and main terminal. It was a transit paradise that would make any modern urbanist weep openly in public. Seriously, look at a map of the 1920s system and try not to get emotional.
+                            The network was anchored by massive downtown hubs like the <strong>Subway Terminal Building</strong>, where trains dove underground to speed beneath the congested streets, and the <strong>Pacific Electric Building on 6th and Main</strong>, a stunning Beaux-Arts structure that served as the system's headquarters and main terminal. It was a transit paradise that would make any modern urbanist weep openly in public.
                         </p>
                         <div className="my-6 rounded-lg overflow-hidden border border-border/50">
                             <img

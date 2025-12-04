@@ -15,9 +15,10 @@ interface SearchBoxProps {
     onLocationSelect: (lat: number, lon: number, name: string) => void;
     placeholder?: string;
     className?: string;
+    onFocus?: () => void;
 }
 
-const SearchBox: React.FC<SearchBoxProps> = ({ onLocationSelect, placeholder = "Search location...", className }) => {
+const SearchBox: React.FC<SearchBoxProps> = ({ onLocationSelect, placeholder = "Search location...", className, onFocus }) => {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<SearchResult[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -83,7 +84,10 @@ const SearchBox: React.FC<SearchBoxProps> = ({ onLocationSelect, placeholder = "
                     placeholder={placeholder}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    onFocus={() => query.length >= 3 && setIsOpen(true)}
+                    onFocus={() => {
+                        if (query.length >= 3) setIsOpen(true);
+                        onFocus?.();
+                    }}
                     className="pl-9 pr-4 py-6 rounded-xl border-border/50 bg-background/50 backdrop-blur-sm focus:bg-background transition-all font-['Josefin_Sans'] text-lg shadow-sm"
                 />
                 <svg className="absolute left-3 top-[48%] transform -translate-y-1/2 h-6 w-6 text-foreground opacity-50 pointer-events-none scale-x-[-1]" viewBox="0 0 24 24" fill="currentColor">
